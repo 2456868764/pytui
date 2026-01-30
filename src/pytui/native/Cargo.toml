@@ -1,0 +1,20 @@
+[package]
+name = "pytui-native"
+version = "0.1.0"
+edition = "2021"
+description = "Rust native extension for pytui (Buffer, Cell, TextBuffer)"
+
+[lib]
+name = "pytui_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.20", features = ["extension-module"] }
+unicode-width = "0.1"
+ropey = "1.6"
+anyhow = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
