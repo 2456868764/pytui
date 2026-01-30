@@ -115,7 +115,11 @@ class Textarea(Renderable):
                 self.request_render()
                 return
             if name == "page_down":
-                lines = self.content.split("\n") if self.buffer is None else (self.buffer.get_lines() if self.buffer else [])
+                lines = (
+                    self.content.split("\n")
+                    if self.buffer is None
+                    else (self.buffer.get_lines() if self.buffer else [])
+                )
                 max_scroll = max(0, len(lines) - self.height)
                 self.set_scroll_y(min(self._get_start_line() + self.height, max_scroll))
                 self.request_render()
@@ -290,6 +294,7 @@ class Textarea(Renderable):
         if syntax_lang:
             try:
                 from pytui.syntax.themes import get_theme
+
                 syntax_theme_map = get_theme(self.syntax_theme)
             except Exception:
                 syntax_lang = None
@@ -304,6 +309,7 @@ class Textarea(Renderable):
             if syntax_lang and syntax_theme_map:
                 try:
                     from pytui.syntax.highlighter import highlight as syntax_highlight
+
                     tokens = syntax_highlight(line, syntax_lang)
                     col = 0
                     for text, token_type in tokens:

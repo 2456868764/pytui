@@ -106,6 +106,7 @@ BLOCK_FONT = {
 SLICK_FONT = {**BLOCK_FONT, "name": "slick"}
 SHADE_FONT = {**BLOCK_FONT, "name": "shade"}
 
+
 # 未知字符用空格
 def _char_lines(font: dict, ch: str) -> list[str]:
     c = font["chars"].get(ch.upper(), font["chars"].get(" ", [" ", " "]))

@@ -1,6 +1,5 @@
 # pytui.components.tab_select
 
-from typing import Optional
 
 from pytui.core.buffer import Cell, OptimizedBuffer
 from pytui.core.colors import parse_color
@@ -10,13 +9,11 @@ from pytui.core.renderable import Renderable
 class TabSelect(Renderable):
     """多 tab 切换：水平排列，选中项高亮，支持 selection_changed 事件。"""
 
-    def __init__(self, ctx, options: Optional[dict] = None) -> None:
+    def __init__(self, ctx, options: dict | None = None) -> None:
         options = options or {}
         super().__init__(ctx, options)
         self.tabs: list[str] = list(options.get("tabs", []))
-        self.selected_index = max(
-            0, min(options.get("selected", 0), len(self.tabs) - 1)
-        )
+        self.selected_index = max(0, min(options.get("selected", 0), len(self.tabs) - 1))
         self.fg = parse_color(options.get("fg", "#ffffff"))
         self.bg = parse_color(options.get("bg", "transparent"))
         self.selected_fg = parse_color(options.get("selected_fg", "#000000"))
@@ -24,7 +21,7 @@ class TabSelect(Renderable):
         self.separator = options.get("separator", "  ")
 
     @property
-    def selected(self) -> Optional[str]:
+    def selected(self) -> str | None:
         if 0 <= self.selected_index < len(self.tabs):
             return self.tabs[self.selected_index]
         return None

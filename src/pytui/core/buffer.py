@@ -127,9 +127,7 @@ class OptimizedBuffer:
             )
         return self.cells[y, x]
 
-    def draw_text(
-        self, text: str, x: int, y: int, fg: tuple[int, int, int, int]
-    ) -> None:
+    def draw_text(self, text: str, x: int, y: int, fg: tuple[int, int, int, int]) -> None:
         """绘制文本，超出宽度截断。"""
         if self.use_native and self._native_buffer is not None:
             self._native_buffer.draw_text(text, x, y, fg)
@@ -189,5 +187,5 @@ class OptimizedBuffer:
         r, g, b, a = cell.bg
         if a > 0:
             codes.append(f"48;2;{r};{g};{b}")
-        prefix = f'\x1b[{";".join(codes)}m' if codes else ""
+        prefix = f"\x1b[{';'.join(codes)}m" if codes else ""
         return f"{prefix}{cell.char}\x1b[0m"

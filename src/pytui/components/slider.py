@@ -1,6 +1,5 @@
 # pytui.components.slider
 
-from typing import Optional
 
 from pytui.core.buffer import Cell, OptimizedBuffer
 from pytui.core.colors import parse_color
@@ -10,7 +9,7 @@ from pytui.core.renderable import Renderable
 class Slider(Renderable):
     """数值滑块：min/max/step，水平条与拇指，支持 change 事件。"""
 
-    def __init__(self, ctx, options: Optional[dict] = None) -> None:
+    def __init__(self, ctx, options: dict | None = None) -> None:
         options = options or {}
         super().__init__(ctx, options)
         self._min = float(options.get("min", 0))

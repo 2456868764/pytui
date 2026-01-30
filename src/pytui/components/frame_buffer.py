@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from pytui.core.buffer import Cell, OptimizedBuffer
+from pytui.core.buffer import OptimizedBuffer
 from pytui.core.renderable import Renderable
 
 

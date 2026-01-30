@@ -56,7 +56,18 @@ class KeyboardHandler(EventEmitter):
                         return
                     letter = self._buffer[2]
                     del self._buffer[:3]
-                    ss3_map = {"A": "up", "B": "down", "C": "right", "D": "left", "H": "home", "F": "end", "P": "f1", "Q": "f2", "R": "f3", "S": "f4"}
+                    ss3_map = {
+                        "A": "up",
+                        "B": "down",
+                        "C": "right",
+                        "D": "left",
+                        "H": "home",
+                        "F": "end",
+                        "P": "f1",
+                        "Q": "f2",
+                        "R": "f3",
+                        "S": "f4",
+                    }
                     name = ss3_map.get(letter, "unknown")
                     key = {"name": name, "char": "", "ctrl": False, "alt": False, "shift": False}
                     if os.environ.get("PYTUI_DEBUG"):
@@ -121,11 +132,36 @@ class KeyboardHandler(EventEmitter):
         shift, alt, ctrl = _kitty_mod_to_flags(mod_val)
         name = _KITTY_KEYCODE_NAME.get(keycode)
         if name is not None:
-            char = "" if name in ("tab", "enter", "escape", "backspace", "up", "down", "left", "right", "home", "end", "delete", "insert", "f13", "f14") else (chr(keycode) if 32 <= keycode <= 126 else "")
+            special = (
+                "tab",
+                "enter",
+                "escape",
+                "backspace",
+                "up",
+                "down",
+                "left",
+                "right",
+                "home",
+                "end",
+                "delete",
+                "insert",
+                "f13",
+                "f14",
+            )
+            char = "" if name in special else (chr(keycode) if 32 <= keycode <= 126 else "")
             self.emit("keypress", {"name": name, "char": char, "ctrl": ctrl, "alt": alt, "shift": shift})
             return
         if 32 <= keycode <= 126:
-            self.emit("keypress", {"name": chr(keycode), "char": chr(keycode), "ctrl": ctrl, "alt": alt, "shift": shift})
+            self.emit(
+                "keypress",
+                {
+                    "name": chr(keycode),
+                    "char": chr(keycode),
+                    "ctrl": ctrl,
+                    "alt": alt,
+                    "shift": shift,
+                },
+            )
             return
         if 1 <= keycode <= 26:
             self.emit("keypress", {"name": chr(keycode + 96), "char": "", "ctrl": True, "alt": alt, "shift": shift})
@@ -158,7 +194,18 @@ class KeyboardHandler(EventEmitter):
             try:
                 mod_val = int(seq[3:-1])
                 shift, alt, ctrl = _kitty_mod_to_flags(mod_val)
-                legacy = {"A": "up", "B": "down", "C": "right", "D": "left", "H": "home", "F": "end", "P": "f1", "Q": "f2", "R": "f3", "S": "f4"}
+                legacy = {
+                    "A": "up",
+                    "B": "down",
+                    "C": "right",
+                    "D": "left",
+                    "H": "home",
+                    "F": "end",
+                    "P": "f1",
+                    "Q": "f2",
+                    "R": "f3",
+                    "S": "f4",
+                }
                 name = legacy.get(seq[-1], "unknown")
                 self.emit("keypress", {"name": name, "char": "", "ctrl": ctrl, "alt": alt, "shift": shift})
                 return

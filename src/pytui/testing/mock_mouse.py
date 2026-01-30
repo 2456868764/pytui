@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class MockMouse:
     """向 renderer 注入鼠标序列的辅助对象；若 renderer 无 mouse 则先挂载 MouseHandler。"""
 
-    def __init__(self, renderer: "Renderer") -> None:
+    def __init__(self, renderer: Renderer) -> None:
         self._renderer = renderer
         if not hasattr(renderer, "mouse") or renderer.mouse is None:
             from pytui.core.mouse import MouseHandler
@@ -27,6 +27,6 @@ class MockMouse:
         return self._handler.feed(data)
 
 
-def create_mock_mouse(renderer: "Renderer") -> MockMouse:
+def create_mock_mouse(renderer: Renderer) -> MockMouse:
     """返回可向 renderer 注入鼠标事件的 MockMouse；必要时为 renderer 挂载 MouseHandler。"""
     return MockMouse(renderer)

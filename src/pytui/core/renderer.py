@@ -17,6 +17,7 @@ from pytui.core.terminal import Terminal
 @dataclass
 class RenderContext:
     """渲染上下文。"""
+
     renderer: "Renderer"
 
 
@@ -74,6 +75,7 @@ class Renderer:
                 self._input_stream = open("/dev/tty", "rb")
                 import termios
                 import tty
+
                 fd = self._input_stream.fileno()
                 self._input_saved_attrs = termios.tcgetattr(fd)
                 tty.setraw(fd)
@@ -201,6 +203,7 @@ class Renderer:
         if self._input_stream is not None and self._input_saved_attrs is not None:
             try:
                 import termios
+
                 termios.tcsetattr(self._input_stream.fileno(), termios.TCSADRAIN, self._input_saved_attrs)
             except Exception:
                 pass

@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 # RGBA tuple
 ColorTuple = tuple[int, int, int, int]
@@ -23,10 +22,7 @@ class SyntaxStyle:
 
 def convert_theme_to_styles(theme: dict[str, ColorTuple]) -> dict[str, SyntaxStyle]:
     """将主题（token_type -> (r,g,b,a)）转为 token_type -> SyntaxStyle。"""
-    return {
-        token: SyntaxStyle(fg=color, bg=(0, 0, 0, 0))
-        for token, color in theme.items()
-    }
+    return {token: SyntaxStyle(fg=color, bg=(0, 0, 0, 0)) for token, color in theme.items()}
 
 
 def get_default_styles() -> dict[str, SyntaxStyle]:

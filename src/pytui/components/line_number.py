@@ -1,6 +1,5 @@
 # pytui.components.line_number
 
-from typing import Optional
 
 from pytui.core.buffer import Cell, OptimizedBuffer
 from pytui.core.colors import parse_color
@@ -10,7 +9,7 @@ from pytui.core.renderable import Renderable
 class LineNumber(Renderable):
     """行号区：左侧固定宽度的行号列（可配 scroll_offset），与内容区配合使用。"""
 
-    def __init__(self, ctx, options: Optional[dict] = None) -> None:
+    def __init__(self, ctx, options: dict | None = None) -> None:
         options = options or {}
         super().__init__(ctx, options)
         self.line_count = max(0, int(options.get("line_count", 1)))

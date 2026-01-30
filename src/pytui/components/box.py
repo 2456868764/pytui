@@ -42,9 +42,7 @@ class Box(Renderable):
     def _draw_border(self, buffer: OptimizedBuffer) -> None:
         chars = self.BORDER_CHARS.get(self.border_style, self.BORDER_CHARS["single"])
         buffer.set_cell(self.x, self.y, Cell(char=chars["tl"], fg=self.border_color))
-        buffer.set_cell(
-            self.x + self.width - 1, self.y, Cell(char=chars["tr"], fg=self.border_color)
-        )
+        buffer.set_cell(self.x + self.width - 1, self.y, Cell(char=chars["tr"], fg=self.border_color))
         buffer.set_cell(
             self.x,
             self.y + self.height - 1,
@@ -56,18 +54,14 @@ class Box(Renderable):
             Cell(char=chars["br"], fg=self.border_color),
         )
         for dx in range(1, self.width - 1):
-            buffer.set_cell(
-                self.x + dx, self.y, Cell(char=chars["h"], fg=self.border_color)
-            )
+            buffer.set_cell(self.x + dx, self.y, Cell(char=chars["h"], fg=self.border_color))
             buffer.set_cell(
                 self.x + dx,
                 self.y + self.height - 1,
                 Cell(char=chars["h"], fg=self.border_color),
             )
         for dy in range(1, self.height - 1):
-            buffer.set_cell(
-                self.x, self.y + dy, Cell(char=chars["v"], fg=self.border_color)
-            )
+            buffer.set_cell(self.x, self.y + dy, Cell(char=chars["v"], fg=self.border_color))
             buffer.set_cell(
                 self.x + self.width - 1,
                 self.y + dy,

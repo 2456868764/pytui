@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from pytui.core.buffer import OptimizedBuffer
 
 
-def buffer_snapshot_lines(buffer: "OptimizedBuffer") -> list[str]:
+def buffer_snapshot_lines(buffer: OptimizedBuffer) -> list[str]:
     """将 buffer 按行转为字符串列表，每行仅字符（用于快照比对）。"""
     lines = []
     for y in range(buffer.height):
@@ -21,7 +21,7 @@ def buffer_snapshot_lines(buffer: "OptimizedBuffer") -> list[str]:
     return lines
 
 
-def assert_buffer_snapshot(buffer: "OptimizedBuffer", expected_lines: list[str]) -> None:
+def assert_buffer_snapshot(buffer: OptimizedBuffer, expected_lines: list[str]) -> None:
     """断言 buffer 内容与 expected_lines 一致；行数/每行长度需与 buffer 尺寸一致。"""
     got = buffer_snapshot_lines(buffer)
     if len(expected_lines) != buffer.height:
@@ -31,10 +31,6 @@ def assert_buffer_snapshot(buffer: "OptimizedBuffer", expected_lines: list[str])
         )
     for y, (exp, g) in enumerate(zip(expected_lines, got)):
         if len(exp) != buffer.width:
-            raise AssertionError(
-                f"Row {y} length: expected {buffer.width}, got {len(exp)}; line={exp!r}"
-            )
+            raise AssertionError(f"Row {y} length: expected {buffer.width}, got {len(exp)}; line={exp!r}")
         if exp != g:
-            raise AssertionError(
-                f"Row {y} mismatch:\n  expected: {exp!r}\n  got:      {g!r}"
-            )
+            raise AssertionError(f"Row {y} mismatch:\n  expected: {exp!r}\n  got:      {g!r}")

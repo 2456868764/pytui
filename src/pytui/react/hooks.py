@@ -67,7 +67,7 @@ def useRenderer(ctx: Any) -> Any:  # noqa: N802
 
 def useResize(ctx: Any) -> tuple[int, int]:  # noqa: N802
     """useResize(ctx) -> (width, height)。随窗口 resize 更新。"""
-    comp = _get_component()
+    _get_component()
     w, h = ctx.renderer.width, ctx.renderer.height
     size, set_size = useState((w, h))
 

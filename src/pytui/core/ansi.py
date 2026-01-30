@@ -1,5 +1,6 @@
 # pytui.core.ansi - ANSI escape sequences
 
+
 class ANSI:
     """ANSI 转义序列工具"""
 

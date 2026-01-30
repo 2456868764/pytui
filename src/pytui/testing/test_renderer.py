@@ -57,7 +57,7 @@ def create_test_renderer(
     height: int = 24,
     use_alternate_screen: bool = False,
     use_mouse: bool = False,
-) -> "Renderer":
+) -> Renderer:
     """创建用于测试的渲染器：无 TTY（MockTerminal）、不读 stdin，可注入 keypress。"""
     from pytui.core.renderer import Renderer
 

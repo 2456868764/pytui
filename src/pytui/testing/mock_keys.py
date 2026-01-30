@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class MockKeys:
     """向 renderer 注入键盘序列的辅助对象。"""
 
-    def __init__(self, renderer: "Renderer") -> None:
+    def __init__(self, renderer: Renderer) -> None:
         self._renderer = renderer
 
     def feed(self, data: str | bytes) -> None:
@@ -20,6 +20,6 @@ class MockKeys:
         self._renderer.keyboard.feed(data)
 
 
-def create_mock_keys(renderer: "Renderer") -> MockKeys:
+def create_mock_keys(renderer: Renderer) -> MockKeys:
     """返回可向 renderer 注入按键的 MockKeys。"""
     return MockKeys(renderer)

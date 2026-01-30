@@ -20,7 +20,9 @@ class Scrollbox(Renderable):
         self.scroll_x = 0
         self.scroll_y = 0
         accel = options.get("scroll_acceleration")
-        self._scroll_accel: ScrollAcceleration | None = accel if hasattr(accel, "tick") and hasattr(accel, "reset") else None
+        self._scroll_accel: ScrollAcceleration | None = (
+            accel if hasattr(accel, "tick") and hasattr(accel, "reset") else None
+        )
 
     def focus(self) -> None:
         super().focus()

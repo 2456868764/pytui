@@ -8,6 +8,7 @@ import os
 # 能力：truecolor | 256 | 16 | mono
 ColorCapability = str
 
+
 # 256 色标准 xterm 调色板前 16 与 216 立方 + 24 灰度
 def _xterm_256_palette() -> list[tuple[int, int, int, int]]:
     out: list[tuple[int, int, int, int]] = []
@@ -35,12 +36,14 @@ def _xterm_256_palette() -> list[tuple[int, int, int, int]]:
     for r in range(6):
         for g in range(6):
             for b in range(6):
-                out.append((
-                    55 + r * 40 if r else 0,
-                    55 + g * 40 if g else 0,
-                    55 + b * 40 if b else 0,
-                    255,
-                ))
+                out.append(
+                    (
+                        55 + r * 40 if r else 0,
+                        55 + g * 40 if g else 0,
+                        55 + b * 40 if b else 0,
+                        255,
+                    )
+                )
     # 232-255: 灰度
     for i in range(24):
         v = 8 + i * 10

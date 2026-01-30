@@ -29,11 +29,13 @@ def _normalize_options(raw: list[SelectOption]) -> list[dict[str, Any]]:
         if isinstance(o, str):
             out.append({"name": o, "description": None, "value": o})
         elif isinstance(o, dict):
-            out.append({
-                "name": o.get("name", str(o.get("value", ""))),
-                "description": o.get("description"),
-                "value": o.get("value", o.get("name", "")),
-            })
+            out.append(
+                {
+                    "name": o.get("name", str(o.get("value", ""))),
+                    "description": o.get("description"),
+                    "value": o.get("value", o.get("name", "")),
+                }
+            )
         else:
             out.append({"name": str(o), "description": None, "value": o})
     return out
@@ -56,8 +58,7 @@ class Select(Renderable):
         super().__init__(ctx, options)
         raw_opts = list(options.get("options", []))
         self._options: list[_OptionRow] = [
-            _OptionRow(o["name"], o.get("description"), o.get("value"))
-            for o in _normalize_options(raw_opts)
+            _OptionRow(o["name"], o.get("description"), o.get("value")) for o in _normalize_options(raw_opts)
         ]
         n = len(self._options)
         self.selected_index = max(0, min(options.get("selected", options.get("selectedIndex", 0)), n - 1 if n else 0))
@@ -194,7 +195,7 @@ class Select(Renderable):
             name_part = row.name[: self.width]
             rest = self.width - len(name_part)
             if self.show_description and row.description and rest > 1:
-                desc_part = (" " + row.description)[: rest]
+                desc_part = (" " + row.description)[:rest]
             else:
                 desc_part = ""
             line = (name_part + desc_part + " " * self.width)[: self.width]

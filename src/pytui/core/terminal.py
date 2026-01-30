@@ -55,6 +55,7 @@ class Terminal:
             try:
                 import termios
                 import tty
+
                 fd = sys.stdin.fileno()
                 self._saved_attrs = termios.tcgetattr(fd)
                 tty.setraw(fd)
@@ -66,6 +67,7 @@ class Terminal:
         if self._raw and hasattr(sys.stdin, "fileno") and hasattr(self, "_saved_attrs"):
             try:
                 import termios
+
                 termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self._saved_attrs)
             except Exception:
                 pass

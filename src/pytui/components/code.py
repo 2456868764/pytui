@@ -70,7 +70,7 @@ class Code(Renderable):
             # 诊断列：! 错误 / ⚠ 警告
             if self.show_diagnostics and diag_w > 0:
                 mark = " "
-                for (d_line, severity) in self.diagnostics:
+                for d_line, severity in self.diagnostics:
                     if d_line == dy:
                         mark = "!" if severity == "error" else "⚠"
                         break

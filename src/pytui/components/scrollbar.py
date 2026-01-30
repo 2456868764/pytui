@@ -1,6 +1,5 @@
 # pytui.components.scrollbar
 
-from typing import Optional
 
 from pytui.core.buffer import Cell, OptimizedBuffer
 from pytui.core.colors import parse_color
@@ -10,7 +9,7 @@ from pytui.core.renderable import Renderable
 class ScrollBar(Renderable):
     """独立垂直滚动条：scroll_max、scroll_value，可组合 Scrollbox 使用，支持 scroll 事件。"""
 
-    def __init__(self, ctx, options: Optional[dict] = None) -> None:
+    def __init__(self, ctx, options: dict | None = None) -> None:
         options = options or {}
         super().__init__(ctx, options)
         self.scroll_max = max(0, int(options.get("scroll_max", 0)))

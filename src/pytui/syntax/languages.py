@@ -14,6 +14,7 @@ def get_language(name: str) -> Any | None:
         return None
     try:
         import tree_sitter_languages as tsl
+
         if hasattr(tsl, "get_language"):
             try:
                 return tsl.get_language(name)
@@ -30,6 +31,7 @@ def get_parser(language: str | None = None) -> Any | None:
     lang_name = language or "python"
     try:
         import tree_sitter_languages as tsl
+
         if hasattr(tsl, "get_parser"):
             try:
                 return tsl.get_parser(lang_name)

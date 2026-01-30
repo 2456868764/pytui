@@ -6,10 +6,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pytui.core.buffer import Cell, OptimizedBuffer
+    from pytui.core.buffer import OptimizedBuffer
 
 
-def apply_dim(buffer: "OptimizedBuffer", alpha: float = 0.5) -> None:
+def apply_dim(buffer: OptimizedBuffer, alpha: float = 0.5) -> None:
     """占位：对 buffer 整体做 dim（按 alpha 与黑色混合）。alpha=1 不变，alpha=0 全黑。"""
     if alpha >= 1.0:
         return
@@ -26,6 +26,6 @@ def apply_dim(buffer: "OptimizedBuffer", alpha: float = 0.5) -> None:
             buffer.set_cell(x, y, Cell(char=cell.char, fg=fg, bg=bg))
 
 
-def apply_blur_placeholder(buffer: "OptimizedBuffer", _radius: int = 1) -> None:
+def apply_blur_placeholder(buffer: OptimizedBuffer, _radius: int = 1) -> None:
     """占位：blur 效果暂未实现，不修改 buffer。"""
     pass

@@ -95,6 +95,7 @@ def _mount(element: dict, parent: Renderable, index: int | None = None) -> tuple
 
     if _is_component_type(type_):
         comp = type_(parent.ctx, props)
+
         # 注册更新回调：重渲染该组件的输出
         def on_update() -> None:
             _update_component_output(comp, parent, comp._react_child_insts)
@@ -222,6 +223,7 @@ def reconcile(elements: Any, container: Renderable) -> None:
 
 def create_reconciler(ctx: Any) -> Callable[[Any, Renderable], None]:
     """创建绑定 ctx 的 reconcile 函数（可选）。"""
+
     def reconcile_to_container(elements: Any, container: Renderable) -> None:
         reconcile(elements, container)
 

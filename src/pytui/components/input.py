@@ -29,8 +29,7 @@ class Input(Renderable):
         self.fg = parse_color(options.get("fg", "#ffffff"))
         self.bg = parse_color(options.get("bg", "transparent"))
         self.placeholder_color = parse_color(
-            options.get("placeholder_color", options.get("placeholderColor"))
-            or "#888888"
+            options.get("placeholder_color", options.get("placeholderColor")) or "#888888"
         )
         # cursorStyle: "block" | "line"；block 为光标处反色+下划线，line 为竖线
         self.cursor_style = options.get("cursor_style", options.get("cursorStyle", "block"))
@@ -93,9 +92,7 @@ class Input(Renderable):
     def insert_char(self, ch: str) -> None:
         if self.max_length is not None and len(self.value) >= self.max_length:
             return
-        self.value = (
-            self.value[: self.cursor_pos] + ch + self.value[self.cursor_pos :]
-        )
+        self.value = self.value[: self.cursor_pos] + ch + self.value[self.cursor_pos :]
         self.cursor_pos += 1
         self.emit("input", self.value)
         self.emit("change", self.value)
@@ -104,9 +101,7 @@ class Input(Renderable):
     def backspace(self) -> None:
         """删除光标前一个字符。"""
         if self.cursor_pos > 0:
-            self.value = (
-                self.value[: self.cursor_pos - 1] + self.value[self.cursor_pos :]
-            )
+            self.value = self.value[: self.cursor_pos - 1] + self.value[self.cursor_pos :]
             self.cursor_pos -= 1
             self.emit("input", self.value)
             self.emit("change", self.value)
@@ -115,9 +110,7 @@ class Input(Renderable):
     def delete_forward(self) -> None:
         """删除光标处字符（DEL 键）。"""
         if self.cursor_pos < len(self.value):
-            self.value = (
-                self.value[: self.cursor_pos] + self.value[self.cursor_pos + 1 :]
-            )
+            self.value = self.value[: self.cursor_pos] + self.value[self.cursor_pos + 1 :]
             self.emit("input", self.value)
             self.emit("change", self.value)
             self.request_render()

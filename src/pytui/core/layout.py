@@ -8,6 +8,7 @@ JustifyContent = Literal["flex-start", "flex-end", "center", "space-between", "s
 
 try:
     import yoga  # type: ignore[import-untyped]
+
     HAS_YOGA = True
 except ImportError:
     HAS_YOGA = False

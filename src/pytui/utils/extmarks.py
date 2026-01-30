@@ -66,11 +66,7 @@ class ExtmarksStore:
 
     def get_in_range(self, start: int, end: int) -> list[Extmark]:
         """返回与 [start, end) 有交集的 extmarks，按 priority 降序、start 升序。"""
-        out = [
-            m
-            for m in self._marks.values()
-            if m.start < end and m.end > start
-        ]
+        out = [m for m in self._marks.values() if m.start < end and m.end > start]
         out.sort(key=lambda m: (-(m.priority or 0), m.start))
         return out
 
