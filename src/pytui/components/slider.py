@@ -1,6 +1,6 @@
 # pytui.components.slider - Aligns OpenTUI packages/core/src/renderables/Slider.ts
 # SliderOptions: orientation, value, min, max, viewPortSize, backgroundColor, foregroundColor, onChange.
-# Virtual thumb (getVirtualThumbSize/getVirtualThumbStart), getThumbRect; render with half-blocks (█▌▐ horizontal, █▀▄ vertical).
+# getVirtualThumbSize, getVirtualThumbStart, getThumbRect; render with half-blocks (█▌▐ horizontal, █▀▄ vertical).
 # Mouse: onMouseDown/onMouseDrag/onMouseUp via on_mouse(event) with type down/drag/up.
 
 from __future__ import annotations
@@ -19,56 +19,33 @@ _DEFAULT_THUMB_FG = parse_color_to_tuple("#9a9ea3")
 
 class Slider(Renderable):
     """Slider: value, min, max, viewPortSize, orientation, backgroundColor, foregroundColor, onChange.
-    Virtual thumb size/start; render with half-blocks; mouse down/drag/up. Aligns OpenTUI SliderRenderable."""
+    getVirtualThumbSize, getVirtualThumbStart, getThumbRect; render with half-blocks. Aligns OpenTUI SliderRenderable."""
 
     def __init__(self, ctx: Any, options: dict | None = None) -> None:
         opts = dict(options) if options else {}
         opts.setdefault("flex_shrink", 0)
         super().__init__(ctx, opts)
         self.orientation: Literal["vertical", "horizontal"] = opts.get(
-            "orientation", opts.get("orientation", "horizontal")
+            "orientation", "horizontal"
         )
         self._min = float(opts.get("min", 0))
         self._max = float(opts.get("max", 100))
         self._view_port_size = float(
-            opts.get("view_port_size", opts.get("viewPortSize", max(1, (self._max - self._min) * 0.1)))
+            opts.get("viewPortSize", opts.get("view_port_size", max(1, (self._max - self._min) * 0.1)))
         )
         self._value = max(
             self._min,
             min(self._max, float(opts.get("value", self._min))),
         )
-        self._backgroundColor = parse_color_to_tuple(
-            opts.get("backgroundColor", "#252527")
-        )
-        self._foregroundColor = parse_color_to_tuple(
-            opts.get("foregroundColor", "#9a9ea3")
-        )
-        self._on_change = opts.get("on_change", opts.get("onChange"))
+        self._backgroundColor = parse_color_to_tuple(opts.get("backgroundColor", "#252527"))
+        self._foregroundColor = parse_color_to_tuple(opts.get("foregroundColor", "#9a9ea3"))
+        self._on_change = opts.get("onChange", opts.get("on_change"))
         self._is_dragging = False
         self._drag_offset_virtual = 0.0
 
     def remove_mouse_listener(self) -> None:
         """No-op; mouse is dispatched by renderer hit_test. Kept for demo destroy compatibility."""
         pass
-
-    # --- Options alignment: backgroundColor, foregroundColor (OpenTUI names) ---
-    @property
-    def backgroundColor(self) -> tuple[int, int, int, int]:
-        return self._backgroundColor
-
-    @backgroundColor.setter
-    def backgroundColor(self, value: Any) -> None:
-        self._backgroundColor = parse_color_to_tuple(value)
-        self.request_render()
-
-    @property
-    def foregroundColor(self) -> tuple[int, int, int, int]:
-        return self._foregroundColor
-
-    @foregroundColor.setter
-    def foregroundColor(self, value: Any) -> None:
-        self._foregroundColor = parse_color_to_tuple(value)
-        self.request_render()
 
     @property
     def value(self) -> float:
@@ -127,7 +104,24 @@ class Slider(Renderable):
     def viewPortSize(self, v: float) -> None:
         self.view_port_size = v
 
-    # --- Virtual thumb (align OpenTUI getVirtualThumbSize / getVirtualThumbStart) ---
+    @property
+    def backgroundColor(self) -> tuple[int, int, int, int]:
+        return self._backgroundColor
+
+    @backgroundColor.setter
+    def backgroundColor(self, value: Any) -> None:
+        self._backgroundColor = parse_color_to_tuple(value)
+        self.request_render()
+
+    @property
+    def foregroundColor(self) -> tuple[int, int, int, int]:
+        return self._foregroundColor
+
+    @foregroundColor.setter
+    def foregroundColor(self, value: Any) -> None:
+        self._foregroundColor = parse_color_to_tuple(value)
+        self.request_render()
+
     def get_virtual_thumb_size(self) -> int:
         """Align OpenTUI getVirtualThumbSize()."""
         virtual_track = (self.height if self.orientation == "vertical" else self.width) * 2
@@ -165,8 +159,7 @@ class Slider(Renderable):
     def _calculate_drag_offset_virtual(self, event: dict) -> float:
         track_start = self.y if self.orientation == "vertical" else self.x
         mouse_pos = (event.get("y", 0) if self.orientation == "vertical" else event.get("x", 0)) - track_start
-        track_size = self.height if self.orientation == "vertical" else self.width
-        virtual_mouse = max(0, min(track_size * 2, mouse_pos * 2))
+        virtual_mouse = max(0, min((self.height if self.orientation == "vertical" else self.width) * 2, mouse_pos * 2))
         thumb_start = self.get_virtual_thumb_start()
         thumb_size = self.get_virtual_thumb_size()
         return max(0, min(thumb_size, virtual_mouse - thumb_start))
@@ -194,7 +187,7 @@ class Slider(Renderable):
         self.value = self._min + ratio * (self._max - self._min)
 
     def on_mouse(self, event: dict) -> None:
-        """Handle mouse down/drag/up; only called when this slider is hit or captured. Aligns OpenTUI onMouseDown/onMouseDrag/onMouseUp."""
+        """Handle mouse down/drag/up. Aligns OpenTUI onMouseDown/onMouseDrag/onMouseUp."""
         ev_type = event.get("type") or ""
         ex = event.get("x", 0)
         ey = event.get("y", 0)
@@ -221,7 +214,6 @@ class Slider(Renderable):
         self._is_dragging = False
         super().blur()
 
-    # --- Render (align OpenTUI renderHorizontal / renderVertical: virtual thumb, half-blocks) ---
     def render_self(self, buffer: OptimizedBuffer) -> None:
         if self.orientation == "horizontal":
             self._render_horizontal(buffer)
@@ -285,5 +277,4 @@ class Slider(Renderable):
                 buffer.set_cell_with_alpha(self.x + dx, self.y + real_y, cell, 1.0)
 
 
-# API parity with OpenTUI SliderRenderable
 SliderRenderable = Slider

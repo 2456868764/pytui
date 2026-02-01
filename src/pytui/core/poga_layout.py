@@ -145,6 +145,9 @@ class PogaNode:
         self._node = YGNodeNew()
         if YGNodeSetNodeType and YGNodeType is not None:
             YGNodeSetNodeType(self._node, getattr(YGNodeType, "Default", 0))
+        self._gap = 0.0
+        self._row_gap = 0.0
+        self._column_gap = 0.0
 
     def __del__(self) -> None:
         if _POGA_CAPI and getattr(self, "_node", None) is not None and YGNodeFree is not None:
@@ -170,8 +173,23 @@ class PogaNode:
             YGNodeStyleSetJustifyContent(self._node, _justify(justify))
 
     def set_gap(self, gap_or_gutter: float | str, value: float | None = None) -> None:
-        # Yoga 2.0+ gap; poga may expose YGNodeStyleSetGap(edge, value)
-        pass
+        # Yoga 2.0+ gap; poga may expose YGNodeStyleSetGap(edge, value). Store for Box gap getter.
+        if value is None:
+            v = float(gap_or_gutter)
+            self._gap = v
+            self._row_gap = v
+            self._column_gap = v
+        else:
+            gutter = gap_or_gutter
+            v = float(value)
+            if gutter == "row":
+                self._row_gap = v
+            elif gutter == "column":
+                self._column_gap = v
+            else:
+                self._gap = v
+                self._row_gap = v
+                self._column_gap = v
 
     def set_border(self, edge: str, value: float) -> None:
         if YGNodeStyleSetBorder is not None:

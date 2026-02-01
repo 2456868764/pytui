@@ -205,7 +205,7 @@ class Scrollbox(Renderable):
         else:
             self.scroll_top = max(0, self.scroll_top - 1)
 
-    def render(self, buffer: OptimizedBuffer) -> None:
+    def render(self, buffer: OptimizedBuffer, delta_time: float = 0.0) -> None:
         if not self.visible:
             return
         self.render_self(buffer)
@@ -229,7 +229,7 @@ class Scrollbox(Renderable):
             saved_y, saved_x = child.y, child.x
             child.y = content_top + off_y - view_start_y
             child.x = content_left + off_x - view_start_x
-            child.render(buffer)
+            child.render(buffer, delta_time)
             child.y, child.x = saved_y, saved_x
         self._dirty = False
 

@@ -104,8 +104,11 @@ class TestStdinBufferPartialEscapeSequences:
             process_input(buffer, ch)
         assert emitted == ["\x1b[<35;20;5m"]
 
-    def test_flush_incomplete_sequence_after_timeout(self, buffer, emitted):
-        process_input(buffer, "\x1b[<35")
+    def test_flush_incomplete_sequence_after_timeout(self, emitted):
+        # Use short timeout_incomplete (15ms) so 0.02s sleep triggers flush
+        b = StdinBuffer({"timeout": 10, "timeout_incomplete": 15})
+        b.on("data", lambda seq: emitted.append(seq))
+        process_input(b, "\x1b[<35")
         assert emitted == []
         time.sleep(0.02)
         assert len(emitted) >= 1
