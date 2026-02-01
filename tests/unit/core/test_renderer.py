@@ -48,17 +48,15 @@ class TestRenderer:
         finally:
             sys.stdout = old
 
-    def test_process_input_decodes_multibyte_utf8(self):
-        """_process_input 逐字节读并用增量 UTF-8 解码，单字多字节（如 中）能正确喂给 _stdin_buffer。"""
+    def test_process_input_collects_chunk_and_processes_once(self):
+        """_process_input 本帧内 select+read(1) 收集后一次 process(chunk)。"""
         from pytui.core.renderer import Renderer
 
         r = Renderer(width=4, height=4, target_fps=0)
         mock_buffer = MagicMock()
-        # 中 = UTF-8 E4 B8 AD，逐字节读入（read(1)）
-        mock_buffer.read.side_effect = [b"\xe4", b"\xb8", b"\xad", b""]
+        mock_buffer.read.side_effect = [b"\xe4", b"\xb8", b"\xad"]
         mock_stdin = MagicMock()
         mock_stdin.buffer = mock_buffer
-
         with patch("pytui.core.renderer.sys.stdin", mock_stdin), patch(
             "pytui.core.renderer.select.select",
             side_effect=[
@@ -69,22 +67,19 @@ class TestRenderer:
             ],
         ), patch.object(r._stdin_buffer, "process") as process_mock:
             r._process_input()
-
         process_mock.assert_called_once_with("\u4e2d")
 
-    def test_process_input_decodes_multiple_chinese_chars(self):
-        """_process_input 逐字节读时，多个中文字符能依次正确解码并喂给 keyboard。"""
+    def test_process_input_collects_multibyte_chunk(self):
+        """_process_input 本帧内收集多字节后一次 process。"""
         from pytui.core.renderer import Renderer
 
         r = Renderer(width=4, height=4, target_fps=0)
         mock_buffer = MagicMock()
-        # 中文 = E4 B8 AD + E6 96 87，逐字节 read(1)
         mock_buffer.read.side_effect = [
-            b"\xe4", b"\xb8", b"\xad", b"\xe6", b"\x96", b"\x87", b""
+            b"\xe4", b"\xb8", b"\xad", b"\xe6", b"\x96", b"\x87",
         ]
         mock_stdin = MagicMock()
         mock_stdin.buffer = mock_buffer
-
         with patch("pytui.core.renderer.sys.stdin", mock_stdin), patch(
             "pytui.core.renderer.select.select",
             side_effect=[
@@ -98,27 +93,19 @@ class TestRenderer:
             ],
         ), patch.object(r._stdin_buffer, "process") as process_mock:
             r._process_input()
+        process_mock.assert_called_once_with("\u4e2d\u6587")
 
-        assert process_mock.call_count == 2
-        process_mock.assert_any_call("\u4e2d")
-        process_mock.assert_any_call("\u6587")
-
-    def test_process_input_decodes_ascii(self):
-        """_process_input 逐字节读时，英文等 ASCII 能正确解码并喂给 keyboard。"""
+    def test_process_input_no_ready_does_nothing(self):
+        """_process_input select 无数据时不调用 process。"""
         from pytui.core.renderer import Renderer
 
         r = Renderer(width=4, height=4, target_fps=0)
         mock_buffer = MagicMock()
-        mock_buffer.read.side_effect = [b"a", b"b", b""]
         mock_stdin = MagicMock()
         mock_stdin.buffer = mock_buffer
-
         with patch("pytui.core.renderer.sys.stdin", mock_stdin), patch(
             "pytui.core.renderer.select.select",
-            side_effect=[([mock_buffer], [], []), ([mock_buffer], [], []), ([], [], [])],
+            side_effect=[([], [], [])],
         ), patch.object(r._stdin_buffer, "process") as process_mock:
             r._process_input()
-
-        assert process_mock.call_count == 2
-        process_mock.assert_any_call("a")
-        process_mock.assert_any_call("b")
+        process_mock.assert_not_called()

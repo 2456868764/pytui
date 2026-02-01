@@ -22,6 +22,10 @@ try:
 except ImportError:
     NativeCliRenderer = None  # type: ignore[misc, assignment]
 
+# StdinBuffer timeout (ms). Single ESC flush after this; incomplete CSI uses timeout_incomplete in StdinBuffer.
+# Override: PYTUI_STDIN_BUFFER_TIMEOUT_MS (e.g. 500).
+_STDIN_BUFFER_TIMEOUT_MS = int(os.environ.get("PYTUI_STDIN_BUFFER_TIMEOUT_MS", "500"))
+
 # --- Enums / constants (align OpenTUI RendererControlState, DebugOverlayCorner, CliRenderEvents) ---
 class RendererControlState:
     IDLE = "idle"
@@ -161,7 +165,7 @@ class Renderer:
         self.context = RenderContext(renderer=self)
         self.root = RootRenderable(self.context, {"id": "root"})
         self._key_handler = InternalKeyHandler(use_kitty_keyboard=use_kitty_keyboard)
-        self._stdin_buffer = StdinBuffer()
+        self._stdin_buffer = StdinBuffer({"timeout": _STDIN_BUFFER_TIMEOUT_MS})
         self._stdin_buffer.on("data", self._on_stdin_sequence)
         self._stdin_buffer.on("paste", self._key_handler.process_paste)
         self.keyboard = self._key_handler
@@ -321,36 +325,40 @@ class Renderer:
             sys.stdout.flush()
 
     def _process_input(self) -> None:
-        # 非 TTY 时从 /dev/tty 读，否则从 stdin；逐字节读 + 增量 UTF-8 解码
+        # 本帧内收集当前可读字节，整块 decode 后只调用一次 process(chunk)，便于 \x1b[Z、\x1b[1;2C 等完整到达。
         stream = self._input_stream if self._input_stream is not None else getattr(sys.stdin, "buffer", sys.stdin)
-        max_reads = 256
         try:
             ready = select.select([stream], [], [], 0)[0]
         except (ValueError, OSError) as e:
             if os.environ.get("PYTUI_DEBUG"):
                 print(f"[pytui:renderer] select error: {e}", file=sys.stderr, flush=True)
             ready = []
-        if os.environ.get("PYTUI_DEBUG") and ready:
-            print("[pytui:renderer] select ready, reading...", file=sys.stderr, flush=True)
-        while max_reads > 0 and ready:
-            data = stream.read(1)
-            if not data:
+        if not ready:
+            return
+        chunk = b""
+        max_reads = 256
+        while max_reads > 0:
+            try:
+                part = stream.read(1)
+            except (BlockingIOError, InterruptedError, OSError):
                 break
-            if os.environ.get("PYTUI_DEBUG"):
-                print(f"[pytui:renderer] read bytes: {data!r}", file=sys.stderr, flush=True)
-            if isinstance(data, bytes):
-                decoded = self._utf8_decoder.decode(data)
-                if decoded:
-                    if os.environ.get("PYTUI_DEBUG"):
-                        print(f"[pytui:renderer] feed decoded: {decoded!r}", file=sys.stderr, flush=True)
-                    self._stdin_buffer.process(decoded)
-            else:
-                self._stdin_buffer.process(data)
+            if not part:
+                break
+            chunk += part
             max_reads -= 1
             try:
                 ready = select.select([stream], [], [], 0)[0]
             except (ValueError, OSError):
                 ready = []
+            if not ready:
+                break
+        if not chunk:
+            return
+        decoded = self._utf8_decoder.decode(chunk)
+        if decoded:
+            if os.environ.get("PYTUI_DEBUG"):
+                print(f"[pytui:renderer] process: {decoded!r}", file=sys.stderr, flush=True)
+            self._stdin_buffer.process(decoded)
 
     def _check_resize(self) -> None:
         w, h = self.terminal.get_size()

@@ -97,6 +97,7 @@ class StdinBuffer(EventEmitter):
         super().__init__()
         opts = options or {}
         self._timeout_ms = opts.get("timeout", 10)
+        self._timeout_incomplete_ms = opts.get("timeout_incomplete", 2000)
         self._buffer = ""
         self._paste_mode = False
         self._paste_buffer = ""
@@ -104,6 +105,10 @@ class StdinBuffer(EventEmitter):
 
     def process(self, data: str | bytes) -> None:
         """Feed input; emit 'data' for each complete sequence, 'paste' for bracketed paste. Aligns OpenTUI process()."""
+        # Clear any pending timeout first (align OpenTUI) so timer cannot fire and flush partial buffer while we append.
+        if self._timeout_handle:
+            self._timeout_handle.cancel()
+            self._timeout_handle = None
         if isinstance(data, bytes):
             if len(data) == 1 and data[0] > 127:
                 s = ESC + chr(data[0] - 128)
@@ -156,15 +161,16 @@ class StdinBuffer(EventEmitter):
             self._schedule_flush()
 
     def _schedule_flush(self) -> None:
-        """Schedule flush after timeout. Aligns OpenTUI setTimeout(flush, timeoutMs)."""
+        """Schedule flush after timeout. Single ESC: short timeout; incomplete CSI (\x1b[, \x1b[1;...): long timeout."""
         if self._timeout_handle:
             self._timeout_handle.cancel()
+        ms = self._timeout_ms if self._buffer == ESC else self._timeout_incomplete_ms
         def _run() -> None:
             self._timeout_handle = None
             flushed = self.flush()
             for seq in flushed:
                 self.emit("data", seq)  # type: ignore[arg-type]
-        self._timeout_handle = threading.Timer(self._timeout_ms / 1000.0, _run)
+        self._timeout_handle = threading.Timer(ms / 1000.0, _run)
         self._timeout_handle.daemon = True
         self._timeout_handle.start()
 

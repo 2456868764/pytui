@@ -38,6 +38,12 @@ except ImportError:
     _tab_select_demo_run = None  # type: ignore[misc, assignment]
     _tab_select_demo_destroy = None  # type: ignore[misc, assignment]
 
+try:
+    from pytui.examples.key_input_demo import destroy as _key_input_demo_destroy, run as _key_input_demo_run
+except ImportError:
+    _key_input_demo_run = None  # type: ignore[misc, assignment]
+    _key_input_demo_destroy = None  # type: ignore[misc, assignment]
+
 EXAMPLES: dict[str, ExampleEntry] = {
     # Phase 1 - Layout & basic controls
     "simple-layout": (_simple_layout_run, _simple_layout_destroy, "Flex layout: horizontal/vertical/centered/three-column"),
@@ -74,7 +80,8 @@ EXAMPLES: dict[str, ExampleEntry] = {
     "opentui-demo": (None, None, "Multi-tab combined demo"),
     "ascii-font-demo": (None, None, "ASCII fonts with various colors"),
     "terminal-palette-demo": (None, None, "256-color palette detection"),
-    "keypress-debug-demo": (None, None, "Keypress event debug tool"),
+    "key-input-demo": (_key_input_demo_run, _key_input_demo_destroy, "Key input debug: press keys to see parsed output"),
+    "keypress-debug-demo": (_key_input_demo_run, _key_input_demo_destroy, "Keypress event debug tool (same as key-input-demo)"),
     "split-mode-demo": (None, None, "Renderer confined to bottom area (experimental)"),
     "timeline-example": (None, None, "Timeline animation and sync"),
     # N/A - GPU/Physics (placeholder only)
