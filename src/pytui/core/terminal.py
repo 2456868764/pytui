@@ -1,9 +1,16 @@
-# pytui.core.terminal - terminal I/O
+# pytui.core.terminal - terminal I/O; capability detection from lib
 
 import os
 import sys
 
 from pytui.core.ansi import ANSI
+from pytui.lib.terminal_capability_detection import (
+    is_capability_response,
+    is_pixel_resolution_response,
+    parse_pixel_resolution,
+)
+
+__all__ = ["Terminal", "is_capability_response", "is_pixel_resolution_response", "parse_pixel_resolution"]
 
 
 class Terminal:

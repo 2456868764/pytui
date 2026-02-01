@@ -20,7 +20,7 @@ class TestSelect:
 
         s = Select(
             mock_context,
-            {"options": ["x", "y", "z"], "width": 10, "height": 3},
+            {"options": ["x", "y", "z"], "width": 10, "height": 3, "wrap_selection": True},
         )
         assert s.selected_index == 0
         s.select_next()
@@ -37,10 +37,11 @@ class TestSelect:
 
         s = Select(
             mock_context,
-            {"options": ["one", "two"], "width": 10, "height": 2},
+            {"options": ["one", "two"], "width": 10, "height": 2, "show_description": False},
         )
         s.x, s.y, s.width, s.height = 0, 0, 10, 2
         s.render_self(buffer_10x5)
-        assert buffer_10x5.get_cell(0, 0).char == "o"
-        assert buffer_10x5.get_cell(1, 0).char == "n"
-        assert buffer_10x5.get_cell(0, 1).char == "t"
+        # First option: "  one" (space space o n e)
+        assert buffer_10x5.get_cell(2, 0).char == "o"
+        assert buffer_10x5.get_cell(3, 0).char == "n"
+        assert buffer_10x5.get_cell(2, 1).char == "t"

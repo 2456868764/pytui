@@ -1,4 +1,5 @@
-# tests.unit.core.test_edit_buffer - EditBuffer insert/delete/undo/redo
+# tests.unit.core.test_edit_buffer - Aligns with OpenTUI packages/core/src/edit-buffer.test.ts
+# EditBuffer create, setText, getText, getCursorPosition, setCursorToLineCol, moveCursor*, gotoLine, destroy.
 
 import pytest
 
@@ -6,6 +7,95 @@ pytest.importorskip("pytui.core.edit_buffer")
 
 
 class TestEditBuffer:
+    @pytest.fixture
+    def buffer(self):
+        from pytui.core.edit_buffer import EditBuffer
+
+        buf = EditBuffer.create("wcwidth")
+        yield buf
+        buf.destroy()
+
+    def test_set_text_and_get_text(self, buffer):
+        buffer.set_text("Hello World")
+        assert buffer.get_text() == "Hello World"
+
+    def test_handle_empty_text(self, buffer):
+        buffer.set_text("")
+        assert buffer.get_text() == ""
+
+    def test_handle_text_with_newlines(self, buffer):
+        text = "Line 1\nLine 2\nLine 3"
+        buffer.set_text(text)
+        assert buffer.get_text() == text
+
+    def test_handle_unicode_characters(self, buffer):
+        text = "Hello 世界 🌟"
+        buffer.set_text(text)
+        assert buffer.get_text() == text
+
+    def test_cursor_at_beginning_after_set_text(self, buffer):
+        buffer.set_text("Hello World")
+        cursor = buffer.get_cursor_position()
+        assert cursor["row"] == 0
+        assert cursor["col"] == 0
+
+    def test_track_cursor_after_movements(self, buffer):
+        buffer.set_text("Hello World")
+        buffer.move_cursor_right()
+        cursor = buffer.get_cursor_position()
+        assert cursor["col"] == 1
+        buffer.move_cursor_right()
+        cursor = buffer.get_cursor_position()
+        assert cursor["col"] == 2
+
+    def test_multi_line_cursor_positions(self, buffer):
+        buffer.set_text("Line 1\nLine 2\nLine 3")
+        buffer.move_cursor_down()
+        cursor = buffer.get_cursor_position()
+        assert cursor["row"] == 1
+        buffer.move_cursor_down()
+        cursor = buffer.get_cursor_position()
+        assert cursor["row"] == 2
+
+    def test_move_cursor_left_and_right(self, buffer):
+        buffer.set_text("ABCDE")
+        buffer.set_cursor_to_line_col(0, 5)
+        assert buffer.get_cursor_position()["col"] == 5
+        buffer.move_cursor_left()
+        assert buffer.get_cursor_position()["col"] == 4
+        buffer.move_cursor_left()
+        assert buffer.get_cursor_position()["col"] == 3
+
+    def test_move_cursor_up_and_down(self, buffer):
+        buffer.set_text("Line 1\nLine 2\nLine 3")
+        buffer.move_cursor_down()
+        assert buffer.get_cursor_position()["row"] == 1
+        buffer.move_cursor_down()
+        assert buffer.get_cursor_position()["row"] == 2
+        buffer.move_cursor_up()
+        assert buffer.get_cursor_position()["row"] == 1
+
+    def test_goto_line(self, buffer):
+        buffer.set_text("Line 1\nLine 2\nLine 3")
+        buffer.goto_line(1)
+        assert buffer.get_cursor_position()["row"] == 1
+        buffer.goto_line(2)
+        assert buffer.get_cursor_position()["row"] == 2
+
+    def test_destroy_twice_no_op(self, buffer):
+        buffer.destroy()
+        buffer.destroy()
+
+    def test_after_destroy_raises(self):
+        from pytui.core.edit_buffer import EditBuffer
+
+        buf = EditBuffer.create("wcwidth")
+        buf.destroy()
+        with pytest.raises(RuntimeError, match="destroyed"):
+            buf.get_text()
+        with pytest.raises(RuntimeError, match="destroyed"):
+            buf.get_cursor_position()
+
     def test_init_empty(self):
         from pytui.core.edit_buffer import EditBuffer
 

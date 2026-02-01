@@ -13,6 +13,14 @@ Optional: build the Rust native extension for faster Buffer performance:
 cd src/pytui/native && maturin develop && cd ../../..
 ```
 
+Optional: enable Tree-sitter syntax highlighting (used by the Code component and `pytui.lib.tree_sitter.highlight`):
+
+```bash
+pip install tree-sitter tree-sitter-languages
+```
+
+The `tree-sitter-languages` package provides prebuilt parsers for Python, JavaScript, TypeScript, Go, Rust, JSON, HTML, CSS, Bash, C, and C++. Alternatively, you can place compiled `.so` (or `.dll` on Windows) language libraries under your data directory at `tree-sitter/languages/<name>.so`; see `pytui.lib.data_paths.get_data_dir()`. Use `pytui.lib.tree_sitter.list_available_languages()` to see which languages load successfully.
+
 ## Minimal example (imperative)
 
 ```python

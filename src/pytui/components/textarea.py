@@ -1,12 +1,12 @@
-# pytui.components.textarea
+# pytui.components.textarea - aligns with OpenTUI TextareaRenderable (Textarea.ts):
+# placeholder, initial_value, backgroundColor, textColor, focusedBackgroundColor, focusedTextColor, onSubmit.
 
-
-from typing import Any
+from typing import Any, Callable
 
 from pytui.core.buffer import Cell, OptimizedBuffer
-from pytui.core.colors import parse_color
 from pytui.core.renderable import Renderable
-from pytui.utils.extmarks import ExtmarksStore
+from pytui.lib import parse_color_to_tuple
+from pytui.lib.extmarks import ExtmarksStore
 
 DEFAULT_TEXTAREA_KEY_BINDINGS = {
     "move-left": "left",
@@ -15,33 +15,49 @@ DEFAULT_TEXTAREA_KEY_BINDINGS = {
     "move-down": "down",
     "move-line-start": "home",
     "move-line-end": "end",
+    "line-home": "ctrl+a",
+    "line-end": "ctrl+e",
+    "buffer-home": "home",
+    "buffer-end": "end",
     "move-buffer-start": "ctrl+home",
     "move-buffer-end": "ctrl+end",
     "delete-backward": "backspace",
     "delete-forward": "delete",
+    "backspace": "backspace",
+    "delete": "delete",
+    "newline": "return",
     "page-up": "page_up",
     "page-down": "page_down",
     "undo": "ctrl+z",
     "redo": "ctrl+shift+z",
+    "submit": "ctrl+return",
 }
 
 
 class Textarea(Renderable):
-    """多行文本，支持垂直滚动。可选接入 EditBuffer 或 EditorView，支持选区高亮与 undo/redo。
-    获得焦点时 ↑/↓ 滚动（无 editor_view）或完整编辑（有 editor_view）。"""
+    """多行文本。Aligns with OpenTUI TextareaRenderable: placeholder, initial_value,
+    backgroundColor, textColor, focusedBackgroundColor, focusedTextColor, onSubmit."""
 
     def __init__(self, ctx, options: dict | None = None):
         options = options or {}
         super().__init__(ctx, options)
-        self.content = options.get("content", "")
+        initial = options.get("initial_value", options.get("initialValue", options.get("content", "")))
+        self.content = initial
         self.scroll_y = 0
         self.buffer = options.get("buffer")
         self.editor_view = options.get("editor_view")
-        self.fg = parse_color(options.get("fg", "#ffffff"))
-        self.bg = parse_color(options.get("bg", "transparent"))
-        self.selection_bg = parse_color(options.get("selection_bg", "#4444aa"))
-        self.cursor_fg = parse_color(options.get("cursor_fg", "#000000"))
-        self.cursor_bg = parse_color(options.get("cursor_bg", "#ffffff"))
+        self._placeholder: str | None = options.get("placeholder")
+        self._on_submit: Callable[[], None] | None = options.get("on_submit", options.get("onSubmit"))
+
+        self.fg = parse_color_to_tuple(options.get("fg", options.get("textColor", "#ffffff")))
+        self.bg = parse_color_to_tuple(options.get("bg", options.get("backgroundColor", "transparent")))
+        foc_fg = options.get("focused_text_color", options.get("focusedTextColor"))
+        self._focused_fg = parse_color_to_tuple(foc_fg) if isinstance(foc_fg, str) else (foc_fg if foc_fg is not None else self.fg)
+        foc_bg = options.get("focused_background_color", options.get("focusedBackgroundColor"))
+        self._focused_bg = parse_color_to_tuple(foc_bg) if isinstance(foc_bg, str) else (foc_bg if foc_bg is not None else self.bg)
+        self.selection_bg = parse_color_to_tuple(options.get("selection_bg", "#4444aa"))
+        self.cursor_fg = parse_color_to_tuple(options.get("cursor_fg", "#000000"))
+        self.cursor_bg = parse_color_to_tuple(options.get("cursor_bg", "#ffffff"))
         self._key_bindings = {
             **DEFAULT_TEXTAREA_KEY_BINDINGS,
             **options.get("key_bindings", options.get("keyBindings") or {}),
@@ -52,6 +68,12 @@ class Textarea(Renderable):
         )
         self.syntax_language: str | None = options.get("syntax_language", options.get("syntaxLanguage"))
         self.syntax_theme: str = options.get("syntax_theme", options.get("syntaxTheme", "default"))
+
+        if self.editor_view and initial:
+            try:
+                self.editor_view.buffer.set_text(initial)
+            except Exception:
+                pass
 
     def _get_lines(self) -> list[str]:
         if self.editor_view is not None:
@@ -224,6 +246,10 @@ class Textarea(Renderable):
             if ev.redo():
                 self.request_render()
             return
+        if action == "submit":
+            if self._on_submit:
+                self._on_submit()
+            return
         ch = key.get("char")
         if ch and len(ch) == 1 and ch.isprintable():
             ev.insert(ch)
@@ -293,22 +319,24 @@ class Textarea(Renderable):
         syntax_theme_map = None
         if syntax_lang:
             try:
-                from pytui.syntax.themes import get_theme
+                from pytui.core.syntax_style import get_theme_scope_colors
 
-                syntax_theme_map = get_theme(self.syntax_theme)
+                syntax_theme_map = get_theme_scope_colors(self.syntax_theme)
             except Exception:
                 syntax_lang = None
 
+        use_fg = self._focused_fg if self.focused else self.fg
+        use_bg = self._focused_bg if self.focused else self.bg
         for dy in range(self.height):
             line_idx = start_line + dy
             if dy >= len(lines):
                 line = ""
             else:
                 line = lines[dy]
-            line_fg_by_col: list[tuple[int, int, int, int]] = [self.fg] * max(self.width, 1)
+            line_fg_by_col: list[tuple[int, int, int, int]] = [use_fg] * max(self.width, 1)
             if syntax_lang and syntax_theme_map:
                 try:
-                    from pytui.syntax.highlighter import highlight as syntax_highlight
+                    from pytui.lib.tree_sitter import highlight as syntax_highlight
 
                     tokens = syntax_highlight(line, syntax_lang)
                     col = 0
@@ -321,7 +349,7 @@ class Textarea(Renderable):
                     pass
             for dx in range(self.width):
                 ch = line[dx] if dx < len(line) else " "
-                fg, bg = line_fg_by_col[dx], self.bg
+                fg, bg = line_fg_by_col[dx], use_bg
                 pos = self.editor_view.buffer.line_col_to_pos(line_idx, dx) if self.editor_view else None
                 if sel is not None and pos is not None and sel[0] <= pos < sel[1]:
                     bg = self.selection_bg
@@ -333,9 +361,9 @@ class Textarea(Renderable):
                         m = marks[0]
                         style = style_map.get(m.style_id or 0, {})
                         if style.get("fg"):
-                            fg = parse_color(style["fg"])
+                            fg = parse_color_to_tuple(style["fg"])
                         if style.get("bg"):
-                            bg = parse_color(style["bg"])
+                            bg = parse_color_to_tuple(style["bg"])
                 buffer.set_cell(
                     self.x + dx,
                     self.y + dy,

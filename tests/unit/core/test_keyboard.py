@@ -61,9 +61,9 @@ class TestKeyboardHandler:
         k = KeyboardHandler()
         out = []
         k.on("keypress", lambda key: out.append(key))
-        k.feed("\x1b[Z")  # Shift+Tab
+        k.feed("\x1b[Z")  # Shift+Tab (backtab)
         assert len(out) == 1
-        assert out[0].get("name") == "tab"
+        assert out[0].get("name") == "backtab"
         assert out[0].get("shift") is True
 
     def test_kitty_csi_u_escape(self):
@@ -173,3 +173,35 @@ class TestKeyboardHandler:
         k.feed("\x1b[OD")  # left
         assert len(out) == 1
         assert out[0].get("name") == "left"
+
+    def test_key_event_has_sequence_meta_option(self):
+        """KeyEvent aligns with OpenTUI: name, sequence, ctrl, shift, meta, option."""
+        from pytui.core.keyboard import KeyboardHandler
+
+        k = KeyboardHandler()
+        out = []
+        k.on("keypress", lambda key: out.append(key))
+        k.feed("a")
+        assert out[0].get("sequence") == "a"
+        assert out[0].get("meta") is False
+        assert out[0].get("option") is False
+        out.clear()
+        k.feed("\x1b[OD")  # left
+        assert out[0].get("sequence") == "\x1b[OD"
+        assert out[0].get("meta") is False
+        assert out[0].get("option") is False
+        out.clear()
+        k.feed("\x1bc")  # Alt+c
+        assert out[0].get("meta") is True
+        assert out[0].get("option") is True
+
+    def test_bracketed_paste(self):
+        """Bracketed paste: ESC [ 200 ~ ... ESC [ 201 ~ emits paste with text."""
+        from pytui.core.keyboard import KeyboardHandler
+
+        k = KeyboardHandler()
+        pasted = []
+        k.on("paste", lambda e: pasted.append(e))
+        k.feed("\x1b[200~hello world\x1b[201~")
+        assert len(pasted) == 1
+        assert pasted[0].get("text") == "hello world"

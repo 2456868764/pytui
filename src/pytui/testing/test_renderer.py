@@ -1,4 +1,5 @@
-# pytui.testing.test_renderer - 无 TTY、可注入输入的 TestRenderer
+# pytui.testing.test_renderer - Aligns with OpenTUI packages/core/src/testing/test-renderer.ts
+# createTestRenderer(options) -> { renderer, mockInput, mockMouse, renderOnce, captureCharFrame, resize }.
 
 
 from __future__ import annotations

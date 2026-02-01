@@ -1,13 +1,13 @@
-# tests/unit/utils/test_scroll_acceleration.py
+# Aligns with OpenTUI MacOSScrollAccel: tick(now_ms), A/tau/max_multiplier opts.
 
 import pytest
 
-pytest.importorskip("pytui.utils.scroll_acceleration")
+pytest.importorskip("pytui.lib.scroll_acceleration")
 
 
 class TestLinearScrollAccel:
     def test_tick_always_one(self):
-        from pytui.utils.scroll_acceleration import LinearScrollAccel
+        from pytui.lib.scroll_acceleration import LinearScrollAccel
 
         accel = LinearScrollAccel()
         assert accel.tick() == 1.0
@@ -16,7 +16,7 @@ class TestLinearScrollAccel:
         assert accel.tick() == 1.0
 
     def test_reset_no_op(self):
-        from pytui.utils.scroll_acceleration import LinearScrollAccel
+        from pytui.lib.scroll_acceleration import LinearScrollAccel
 
         accel = LinearScrollAccel()
         accel.reset()
@@ -25,35 +25,36 @@ class TestLinearScrollAccel:
 
 class TestMacOSScrollAccel:
     def test_first_tick_returns_one(self):
-        from pytui.utils.scroll_acceleration import MacOSScrollAccel
+        from pytui.lib.scroll_acceleration import MacOSScrollAccel
 
-        accel = MacOSScrollAccel(threshold1=80, threshold2=40, multiplier1=2, multiplier2=4)
+        accel = MacOSScrollAccel()
+        # now in ms (OpenTUI uses Date.now())
         assert accel.tick(1000.0) == 1.0
 
     def test_fast_ticks_increase_multiplier(self):
-        from pytui.utils.scroll_acceleration import MacOSScrollAccel
+        from pytui.lib.scroll_acceleration import MacOSScrollAccel
 
-        accel = MacOSScrollAccel(threshold1=100, threshold2=50, multiplier1=2, multiplier2=4)
-        base = 1000.0
-        assert accel.tick(base) == 1.0
-        # 30ms between ticks -> fast
-        assert accel.tick(base + 0.030) >= 1.0
-        assert accel.tick(base + 0.060) >= 1.0
+        accel = MacOSScrollAccel()
+        base_ms = 1000.0
+        assert accel.tick(base_ms) == 1.0
+        # 30ms between ticks -> faster scrolling, multiplier > 1
+        assert accel.tick(base_ms + 30) >= 1.0
+        assert accel.tick(base_ms + 60) >= 1.0
 
     def test_reset_clears_state(self):
-        from pytui.utils.scroll_acceleration import MacOSScrollAccel
+        from pytui.lib.scroll_acceleration import MacOSScrollAccel
 
         accel = MacOSScrollAccel()
         accel.tick(1000.0)
-        accel.tick(1000.05)
+        accel.tick(1010.0)  # 10ms later
         accel.reset()
-        assert accel.tick(1000.1) == 1.0
+        assert accel.tick(1020.0) == 1.0
 
     def test_slow_ticks_after_timeout_return_one(self):
-        from pytui.utils.scroll_acceleration import MacOSScrollAccel
+        from pytui.lib.scroll_acceleration import MacOSScrollAccel
 
-        accel = MacOSScrollAccel(streak_timeout_ms=150)
+        accel = MacOSScrollAccel()
         accel.tick(1000.0)
-        accel.tick(1000.05)
-        # 200ms later -> streak expired
-        assert accel.tick(1000.25) == 1.0
+        accel.tick(1010.0)
+        # 200ms later -> streak expired (streakTimeout 150ms)
+        assert accel.tick(1210.0) == 1.0

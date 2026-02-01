@@ -1,45 +1,17 @@
-# pytui.react.reconciler - 树 diff、挂载/更新/卸载
+# pytui.react.reconciler - 树 diff、挂载/更新/卸载 (aligns OpenTUI host-config + reconciler)
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Any
 
-from pytui.components.ascii_font import ASCIIFont
-from pytui.components.box import Box
-from pytui.components.code import Code
-from pytui.components.diff import Diff
-from pytui.components.frame_buffer import FrameBuffer
-from pytui.components.input import Input
-from pytui.components.line_number import LineNumber
-from pytui.components.scrollbar import ScrollBar
-from pytui.components.scrollbox import Scrollbox
-from pytui.components.select import Select
-from pytui.components.slider import Slider
-from pytui.components.tab_select import TabSelect
-from pytui.components.text import Text
-from pytui.components.text_node import TextNode
 from pytui.core.renderable import Renderable
 from pytui.react import hooks as hooks_module
+from pytui.react.catalogue import TEXT_NODE_KEYS, get_component_catalogue
 from pytui.react.component import Component
-
-# 内置 type 字符串 -> Renderable 类
-TYPE_MAP = {
-    "text": Text,
-    "text_node": TextNode,
-    "ascii_font": ASCIIFont,
-    "box": Box,
-    "input": Input,
-    "select": Select,
-    "tab_select": TabSelect,
-    "slider": Slider,
-    "scrollbar": ScrollBar,
-    "scrollbox": Scrollbox,
-    "line_number": LineNumber,
-    "code": Code,
-    "diff": Diff,
-    "frame_buffer": FrameBuffer,
-}
+from pytui.react.error_boundary import ErrorBoundary
+from pytui.react.text_components import TextChunkRenderable
+from pytui.react.utils_id import get_next_id
 
 # 声明式 onXxx：挂载时从 props 剥离并绑定到 Renderable 事件
 EVENT_PROPS = ("onInput", "onChange", "onSelect", "onSelectionChanged", "onScroll")
@@ -64,13 +36,26 @@ def _is_component_type(type_: Any) -> bool:
     return isinstance(type_, type) and issubclass(type_, Component)
 
 
-def _create_host_renderable(ctx: Any, element: dict) -> Renderable:
+def _get_child_host_context(host_context: dict, type_: str) -> dict:
+    """Align OpenTUI getChildHostContext: is_inside_text for text and text-node keys."""
+    is_inside = host_context.get("is_inside_text", False) or (type_ == "text" or type_ in TEXT_NODE_KEYS)
+    return {**host_context, "is_inside_text": is_inside}
+
+
+def _create_host_renderable(ctx: Any, element: dict, host_context: dict | None = None) -> Renderable:
+    """Create host instance from catalogue; enforce text-node keys inside text. Aligns OpenTUI createInstance."""
+    host_context = host_context or {}
     type_ = element["type"]
+    if type_ in TEXT_NODE_KEYS and not host_context.get("is_inside_text"):
+        raise ValueError(f'Component of type "{type_}" must be created inside of a text node')
     props = element.get("props") or {}
-    cls = TYPE_MAP.get(type_)
+    components = get_component_catalogue()
+    cls = components.get(type_)
     if cls is None:
-        raise ValueError(f"Unknown element type: {type_!r}")
+        raise ValueError(f"Unknown component type: {type_!r}")
+    el_id = get_next_id(type_)
     options = {k: v for k, v in props.items() if k not in EVENT_PROPS}
+    options["id"] = el_id
     if "children" in element and element["children"] and isinstance(element["children"][0], str):
         options.setdefault("content", element["children"][0])
     return cls(ctx, options)
@@ -87,8 +72,14 @@ def _apply_props(renderable: Renderable, props: dict) -> None:
             setattr(renderable, k, v)
 
 
-def _mount(element: dict, parent: Renderable, index: int | None = None) -> tuple[Any, int]:
+def _mount(
+    element: dict,
+    parent: Renderable,
+    index: int | None = None,
+    host_context: dict | None = None,
+) -> tuple[Any, int]:
     """挂载一个虚拟节点到 parent，返回 (instance, 占用的子节点数)。"""
+    host_context = host_context or {"is_inside_text": False}
     type_ = element["type"]
     props = element.get("props") or {}
     children_el = element.get("children") or []
@@ -109,10 +100,15 @@ def _mount(element: dict, parent: Renderable, index: int | None = None) -> tuple
         comp._hook_index = 0
         try:
             tree = comp.render()
-            # 执行 useEffect（简易：每次 render 后执行）
             for item in getattr(comp, "_effect_list", []) or []:
                 if item and item[0]:
                     item[0]()
+        except Exception as e:
+            if isinstance(comp, ErrorBoundary):
+                comp.set_error(e)
+                tree = comp.render()
+            else:
+                raise
         finally:
             hooks_module._current_component = prev
 
@@ -121,26 +117,42 @@ def _mount(element: dict, parent: Renderable, index: int | None = None) -> tuple
         if isinstance(tree, list):
             tree = {"type": "box", "props": {}, "children": tree}
 
-        # 挂载整棵 tree（如 box）到 parent，而不是只挂载 tree 的 children
         next_idx = index if index is not None else len(parent.children)
-        inst, count = _mount(tree, parent, next_idx)
+        try:
+            inst, count = _mount(tree, parent, next_idx, host_context)
+        except Exception as e:
+            if isinstance(comp, ErrorBoundary):
+                comp.set_error(e)
+                tree = comp.render()
+                if not isinstance(tree, dict):
+                    tree = {"type": "box", "props": {}, "children": []}
+                if isinstance(tree, list):
+                    tree = {"type": "box", "props": {}, "children": tree}
+                inst, count = _mount(tree, parent, next_idx, host_context)
+            else:
+                raise
         child_insts = [(tree, inst)]
         comp._react_child_insts = child_insts
         return (("component", comp, child_insts), count)
 
     # Host
-    r = _create_host_renderable(parent.ctx, element)
+    r = _create_host_renderable(parent.ctx, element, host_context)
     _bind_event_props(r, props)
     next_idx = index if index is not None else len(parent.children)
     parent.add(r, next_idx)
     if props.get("focused") is True and callable(getattr(r, "focus", None)):
         r.focus()
 
+    child_ctx = _get_child_host_context(host_context, type_)
     child_insts: list[tuple[Any, Any]] = []
     for el in children_el:
         if isinstance(el, str):
+            if type_ == "text":
+                chunk = TextChunkRenderable(parent.ctx, el)
+                r.add(chunk)
+                child_insts.append(({"__text": el}, chunk))
             continue
-        inst, _ = _mount(el, r)
+        inst, _ = _mount(el, r, None, child_ctx)
         child_insts.append((el, inst))
     r._react_children = child_insts
     return ((element, r), 1)
@@ -228,3 +240,47 @@ def create_reconciler(ctx: Any) -> Callable[[Any, Renderable], None]:
         reconcile(elements, container)
 
     return reconcile_to_container
+
+
+def create_root(renderer: Any) -> Any:
+    """Create a root for rendering a React tree with the given CLI renderer.
+    Aligns OpenTUI createRoot(renderer). Returns object with render(node) and unmount()."""
+    from pytui.react.app import set_app_context
+    from pytui.react.error_boundary import ErrorBoundary
+    from pytui.react.jsx import h
+
+    set_app_context(key_handler=getattr(renderer, "keyboard", None), renderer=renderer)
+    root_container = getattr(renderer, "root", None)
+    if root_container is None:
+        root_container = getattr(renderer, "context", None) and getattr(renderer.context, "root", None)
+    if root_container is None:
+        raise ValueError("renderer must have .root or .context.root")
+
+    _react_children: list[Any] = []
+
+    def cleanup() -> None:
+        nonlocal _react_children
+        for _, inst in _react_children:
+            _unmount(inst, root_container)
+        _react_children = []
+        if hasattr(renderer, "schedule_render"):
+            renderer.schedule_render()
+
+    def render(node: Any) -> None:
+        nonlocal _react_children
+        wrapped = h(ErrorBoundary, {"children": node})
+        for _, inst in _react_children:
+            _unmount(inst, root_container)
+        _react_children = []
+        inst, _cnt = _mount(wrapped, root_container, None, {"is_inside_text": False})
+        _react_children.append((wrapped, inst))
+        if hasattr(renderer, "schedule_render"):
+            renderer.schedule_render()
+
+    return type("Root", (), {"render": render, "unmount": cleanup})()
+
+
+def flush_sync(fn: Callable[[], None] | None = None) -> None:
+    """Flush synchronous work. Aligns OpenTUI flushSync. No-op in custom reconciler; optional fn()."""
+    if fn is not None:
+        fn()

@@ -1,4 +1,4 @@
-# pytui.react.hooks - useState、useEffect（简易实现）
+# pytui.react.hooks - useState, useEffect, useKeyboard, useOnResize, useTerminalDimensions, useTimeline (align OpenTUI hooks)
 
 from __future__ import annotations
 
@@ -59,60 +59,135 @@ def useEffect(  # noqa: N802
     comp._effect_list[idx] = (effect, deps)
 
 
-def useRenderer(ctx: Any) -> Any:  # noqa: N802
-    """useRenderer(ctx) -> renderer。便捷获取当前渲染器。"""
+def useRenderer(ctx: Any | None = None) -> Any:  # noqa: N802
+    """useRenderer(ctx?) -> renderer. Aligns OpenTUI useRenderer(); uses use_app_context() or ctx when passed (backward compat)."""
     _get_component()
-    return ctx.renderer
+    if ctx is not None:
+        return getattr(ctx, "renderer", ctx)
+    from pytui.react.app import use_app_context
+    app_ctx = use_app_context()
+    renderer = app_ctx.get("renderer")
+    if renderer is None:
+        raise RuntimeError("Renderer not found.")
+    return renderer
 
 
-def useResize(ctx: Any) -> tuple[int, int]:  # noqa: N802
-    """useResize(ctx) -> (width, height)。随窗口 resize 更新。"""
-    _get_component()
-    w, h = ctx.renderer.width, ctx.renderer.height
-    size, set_size = useState((w, h))
+def useOnResize(callback: Callable[[int, int], None], ctx: Any | None = None) -> Any:  # noqa: N802
+    """useOnResize(callback, ctx?) -> subscribe to resize; returns renderer. Aligns OpenTUI useOnResize()."""
+    renderer = useRenderer(ctx)
+    stable = useEvent(callback)
 
     def setup() -> None:
-        def on_resize(nw: int, nh: int) -> None:
-            set_size((nw, nh))
-
-        ctx.renderer.events.on("resize", on_resize)
-
+        def on_resize(w: int, h: int) -> None:
+            stable(w, h)
+        renderer.events.on("resize", on_resize)
+        def cleanup() -> None:
+            renderer.events.remove_listener("resize", on_resize)
+        return cleanup
     useEffect(setup, [])
-    return size
+    return renderer
 
 
-def useKeyboard(ctx: Any) -> Any:  # noqa: N802
-    """useKeyboard(ctx) -> events。用于在 useEffect 中 events.on('keypress', handler)。"""
-    _get_component()
-    return ctx.renderer.events
+def useTerminalDimensions(ctx: Any | None = None) -> tuple[int, int]:  # noqa: N802
+    """useTerminalDimensions(ctx?) -> (width, height). Aligns OpenTUI useTerminalDimensions()."""
+    renderer = useRenderer(ctx)
+    w, h = renderer.width, renderer.height
+    dimensions, set_dimensions = useState({"width": w, "height": h})
+
+    def on_resize(nw: int, nh: int) -> None:
+        set_dimensions({"width": nw, "height": nh})
+    useOnResize(on_resize, ctx)
+    return (dimensions["width"], dimensions["height"])
 
 
-def useTimeline(ctx: Any) -> dict[str, Any]:  # noqa: N802
-    """useTimeline(ctx) -> { elapsed, pause, resume }。
-    每帧更新 elapsed（秒，自挂载起）；pause/resume 可暂停计时。与 core 动画解耦，仅依赖 renderer 的 frame 事件。"""
+def useResize(ctx: Any | None = None) -> tuple[int, int]:  # noqa: N802
+    """useResize(ctx?) -> (width, height). Subscribes to resize; pass ctx for backward compat. Aligns OpenTUI useOnResize + state."""
+    return useTerminalDimensions(ctx)
+
+
+def useEvent(fn: Callable[..., Any]) -> Callable[..., Any]:  # noqa: N802
+    """useEvent(fn) -> 稳定引用的包装函数；每次 render 时 fn 更新为最新闭包，调用时执行最新 fn。
+    用于在 useEffect(setup, []) 中注册的 handler，避免闭包陈旧值；调用方无需把 fn 放入 deps。"""
     comp = _get_component()
-    start_time_ref: list[float] = [time.time()]
-    paused_ref: list[bool] = [False]
-    elapsed, set_elapsed = useState(0.0)
+    if not hasattr(comp, "_useEvent_fns"):
+        comp._useEvent_fns = []
+    if not hasattr(comp, "_useEvent_wrappers"):
+        comp._useEvent_wrappers = []
+    if not hasattr(comp, "_hook_index"):
+        comp._hook_index = 0
+    idx = comp._hook_index
+    comp._hook_index += 1
+    while idx >= len(comp._useEvent_fns):
+        comp._useEvent_fns.append(None)
+        comp._useEvent_wrappers.append(None)
+    comp._useEvent_fns[idx] = fn
+    if comp._useEvent_wrappers[idx] is None:
+
+        def make_wrapper(i: int) -> Callable[..., Any]:
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
+                f = getattr(comp, "_useEvent_fns", [None])[i]
+                if f is not None:
+                    return f(*args, **kwargs)
+                return None
+
+            return wrapper
+
+        comp._useEvent_wrappers[idx] = make_wrapper(idx)
+    return comp._useEvent_wrappers[idx]
+
+
+def useKeyboard(  # noqa: N802
+    handler_or_ctx: Callable[[Any], None] | Any = None,
+    options: dict[str, Any] | None = None,
+) -> Any:
+    """useKeyboard(handler, options?) -> subscribe to keypress (and keyrelease if options.release).
+    Legacy: useKeyboard(ctx) returns renderer.events. Aligns OpenTUI useKeyboard(handler, { release?: boolean })."""
+    _get_component()
+    # Backward compat: useKeyboard(ctx) returns events
+    if options is None and not callable(handler_or_ctx) and handler_or_ctx is not None:
+        renderer = getattr(handler_or_ctx, "renderer", handler_or_ctx)
+        return getattr(renderer, "events", renderer)
+    handler = handler_or_ctx
+    if handler is None:
+        raise TypeError("useKeyboard(handler, options?) or useKeyboard(ctx)")
+    from pytui.react.app import use_app_context
+    options = options or {}
+    release = options.get("release", False)
+    ctx = use_app_context()
+    key_handler = ctx.get("key_handler")
+    if key_handler is None and getattr(handler_or_ctx, "renderer", None) is not None:
+        key_handler = getattr(handler_or_ctx.renderer, "keyboard", None)
+    stable = useEvent(handler)
 
     def setup() -> None:
-        if getattr(comp, "_timeline_registered", False):
+        if key_handler is None:
             return
-        comp._timeline_registered = True
-        start_time_ref[0] = time.time()
+        key_handler.on("keypress", stable)
+        if release:
+            key_handler.on("keyrelease", stable)
+        def cleanup() -> None:
+            key_handler.remove_listener("keypress", stable)
+            if release:
+                key_handler.remove_listener("keyrelease", stable)
+        return cleanup
+    useEffect(setup, [key_handler, release])
 
-        def on_frame(now: float) -> None:
-            if not paused_ref[0]:
-                set_elapsed(now - start_time_ref[0])
 
-        ctx.renderer.events.on("frame", on_frame)
+def useTimeline(options: dict[str, Any] | Any | None = None) -> Any:  # noqa: N802
+    """useTimeline(options?) -> Timeline. Aligns OpenTUI useTimeline(options); engine.register, play if not autoplay.
+    Legacy: useTimeline(ctx) treated as useTimeline({})."""
+    from pytui.core.animation import engine
+    from pytui.core.animation import Timeline
+    opts = options if isinstance(options, dict) else {}
+    timeline = Timeline(opts)
 
+    def setup() -> None:
+        if not opts.get("autoplay", True):
+            timeline.play()
+        engine.register(timeline)
+        def cleanup() -> None:
+            timeline.pause()
+            engine.unregister(timeline)
+        return cleanup
     useEffect(setup, [])
-
-    def pause() -> None:
-        paused_ref[0] = True
-
-    def resume() -> None:
-        paused_ref[0] = False
-
-    return {"elapsed": elapsed, "pause": pause, "resume": resume}
+    return timeline

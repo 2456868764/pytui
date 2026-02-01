@@ -1,9 +1,11 @@
-# pytui.core.renderable - render tree base
+# pytui.core.renderable - Aligns with OpenTUI packages/core/src/Renderable.ts
+# LayoutEvents, RenderableEvents, Renderable base, add/remove(id)/insertBefore, getChildren, findById,
+# requestRender, calculateLayout, render/renderSelf, focus/blur.
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from pyee import EventEmitter
 
@@ -12,6 +14,18 @@ from pytui.core.layout import LayoutNode
 
 if TYPE_CHECKING:
     from pytui.core.renderer import RenderContext
+
+# Align with OpenTUI LayoutEvents
+LayoutEvents = Literal["layout-changed", "added", "removed", "resized"]
+LAYOUT_CHANGED: LayoutEvents = "layout-changed"
+ADDED: LayoutEvents = "added"
+REMOVED: LayoutEvents = "removed"
+RESIZED: LayoutEvents = "resized"
+
+# Align with OpenTUI RenderableEvents
+RenderableEvents = Literal["focused", "blurred"]
+FOCUSED: RenderableEvents = "focused"
+BLURRED: RenderableEvents = "blurred"
 
 
 class Renderable(ABC, EventEmitter):
@@ -36,9 +50,12 @@ class Renderable(ABC, EventEmitter):
         self.width = 0
         self.height = 0
         self.visible = options.get("visible", True)
-        self.z_index = options.get("z_index", 0)
+        self.z_index = options.get("z_index", options.get("zIndex", 0))
         self.focused = options.get("focused", False)
         self._dirty = True
+        self._opacity = options.get("opacity", 1.0)
+        self._render_before = options.get("render_before", options.get("renderBefore"))
+        self._render_after = options.get("render_after", options.get("renderAfter"))
         self._apply_layout_options(options)
 
     def _apply_layout_options(self, options: dict[str, Any]) -> None:
@@ -48,6 +65,8 @@ class Renderable(ABC, EventEmitter):
             self.layout_node.set_align_items(options["align_items"])
         if "justify_content" in options:
             self.layout_node.set_justify_content(options["justify_content"])
+        if "gap" in options:
+            self.layout_node.set_gap(options["gap"])
         if "flex_grow" in options:
             self.layout_node.set_flex_grow(options["flex_grow"])
         if "flex_shrink" in options:
@@ -93,21 +112,48 @@ class Renderable(ABC, EventEmitter):
             self.children.insert(index, child)
             self.layout_node.add_child(child.layout_node, index)
         self.emit("child_added", child)
-        child.emit("added", self)
+        child.emit(ADDED, self)
         self.request_render()
 
-    def remove(self, child: Renderable) -> None:
+    def remove(self, child: Renderable | str) -> None:
+        """Remove by child reference or by id (align with OpenTUI remove(id: string))."""
+        if isinstance(child, str):
+            c = self.get_root().find_by_id(child)
+            if c and c.parent:
+                c.parent.remove(c)
+            return
         if child in self.children:
             self.children.remove(child)
             self.layout_node.remove_child(child.layout_node)
             child.parent = None
             self.emit("child_removed", child)
-            child.emit("removed", self)
+            child.emit(REMOVED, self)
             self.request_render()
+
+    def remove_by_id(self, id: str) -> None:
+        """Align with OpenTUI remove(id: string)."""
+        self.remove(id)
+
+    def insert_before(self, obj: Renderable, anchor: Renderable) -> int:
+        """Insert obj before anchor (align with OpenTUI insertBefore). Returns index."""
+        if obj.parent:
+            obj.parent.remove(obj)
+        idx = self.children.index(anchor) if anchor in self.children else len(self.children)
+        obj.parent = self
+        self.children.insert(idx, obj)
+        self.layout_node.add_child(obj.layout_node, idx)
+        self.emit("child_added", obj)
+        obj.emit(ADDED, self)
+        self.request_render()
+        return idx
 
     def remove_all(self) -> None:
         for c in list(self.children):
             self.remove(c)
+
+    def get_children(self) -> list[Renderable]:
+        """Return a copy of children (align OpenTUI getChildren())."""
+        return list(self.children)
 
     def request_render(self) -> None:
         self._dirty = True
@@ -123,6 +169,7 @@ class Renderable(ABC, EventEmitter):
                 float(self.ctx.renderer.height),
             )
         layout = self.layout_node.get_computed_layout()
+        old_w, old_h = self.width, self.height
         if self.parent:
             self.x = self.parent.x + int(layout["x"])
             self.y = self.parent.y + int(layout["y"])
@@ -133,13 +180,20 @@ class Renderable(ABC, EventEmitter):
         self.height = int(layout["height"])
         for child in self.children:
             child.calculate_layout()
+        if self.width != old_w or self.height != old_h:
+            self.emit(RESIZED, {"width": self.width, "height": self.height})
+        self.emit(LAYOUT_CHANGED)
 
-    def render(self, buffer: OptimizedBuffer) -> None:
+    def render(self, buffer: OptimizedBuffer, delta_time: float = 0.0) -> None:
         if not self.visible:
             return
+        if self._render_before:
+            self._render_before(buffer, delta_time)
         self.render_self(buffer)
+        if self._render_after:
+            self._render_after(buffer, delta_time)
         for child in sorted(self.children, key=lambda c: c.z_index):
-            child.render(buffer)
+            child.render(buffer, delta_time)
         self._dirty = False
 
     @abstractmethod
@@ -149,13 +203,13 @@ class Renderable(ABC, EventEmitter):
     def focus(self) -> None:
         if not self.focused:
             self.focused = True
-            self.emit("focused")
+            self.emit(FOCUSED)
             self.request_render()
 
     def blur(self) -> None:
         if self.focused:
             self.focused = False
-            self.emit("blurred")
+            self.emit(BLURRED)
             self.request_render()
 
     def is_root(self) -> bool:

@@ -17,6 +17,7 @@
 - [7. 测试运行与 CI](#7-测试运行与-ci)
 - [8. 验收标准与里程碑](#8-验收标准与里程碑)
 - [9. 后续阶段：缺失功能实现计划（与 OpenTUI 对齐）](#9-后续阶段缺失功能实现计划与-opentui-对齐)
+- [10. 基于差异的执行计划与步骤（Phase 12+）](#10-基于差异的执行计划与步骤phase-12)
 
 ---
 
@@ -574,8 +575,142 @@ pytest tests/benchmarks/ --benchmark-only
 | Phase 10 | 富文本、语法/主题增强、RGBA、TestRenderer/Mock/Snapshot | 2–3 周 | 中 |
 | Phase 11 | ASCIIFont、extmarks、terminal-palette、data-paths、Solid reconciler（可选） | 按需 | 低 |
 
-详细缺失项与对照见 [docs/opentui-pytui-comparison.md](docs/opentui-pytui-comparison.md)。  
-**缺失能力与实现步骤**（组件细节、Textarea/编辑器、语法、声明式、ASCIIFont 等）见 [opentui-pytui-comparison.md 第 10 节](docs/opentui-pytui-comparison.md#10-缺失能力与实现步骤)，可作为 Phase 12 及以后的候选步骤插入本计划表。
+详细缺失项与对照见 [docs/opentui-pytui-comparison.md](docs/opentui-pytui-comparison.md) 第 9 节「实现功能差异」。
+
+---
+
+## 10. 基于差异的执行计划与步骤（Phase 12+）
+
+依据 [docs/opentui-pytui-comparison.md](docs/opentui-pytui-comparison.md) 第 9 节「实现功能差异」整理的可执行计划，按优先级与依赖排序。
+
+### 10.1 执行计划总览
+
+| 阶段 | 主题 | 对应差异 | 建议周期 | 优先级 |
+|------|------|----------|----------|--------|
+| Phase 12 | TextNode 属性、React hooks 补齐 | 9.2, 9.3 | 1–2 周 | 高 |
+| Phase 13 | 后处理滤镜（基础） | 9.1 | 1–2 周 | 中 |
+| Phase 14 | ASCII 字体与 Selection 扩展 | 9.7, 9.8 | 约 1 周 | 低 |
+| Phase 15 | Tree-sitter 与预置语言包（可选） | 9.5 | 2–3 周 | 低 |
+| Phase 16 | 后处理滤镜（高级）、CI 拆分（可选） | 9.1, 9.9 | 按需 | 低 |
+
+**不做或暂不做**：3D/WebGPU（9.6）、Solid 完整 reconciler、VRenderable/delegate/constructs（9.4）——与 Python TUI 目标不符或投入过大，保持占位即可。
+
+---
+
+### Phase 12: TextNode 属性与 React hooks 补齐（1–2 周）
+
+**目标**：与 OpenTUI 在 StyledText/TextNode 属性及常用 hooks 上对齐，便于组件与示例迁移。
+
+| 步骤 | 内容 | 产出 | 依赖 |
+|------|------|------|------|
+| 12.1 | components/text_node.py：为 Span/渲染增加 strikethrough、dim、reverse、blink 属性；ANSI 输出对应 SGR（删除线 9、dim 2、reverse 7、blink 5） | TextNode 支持 4 种新属性 | 10.1 |
+| 12.2 | 单元测试：test_text_node.py 中增加 strikethrough/dim/reverse/blink 的渲染或序列校验 | 测试覆盖新属性 | 12.1 |
+| 12.3 | react/hooks.py：新增 useTerminalDimensions(ctx)，返回 (width, height)，实现可委托 ctx.renderer 尺寸或复用 useResize 逻辑 | useTerminalDimensions | 8.x |
+| 12.4 | react/hooks.py：新增 useEvent(fn) 或 useEffectEvent(fn)，返回稳定引用、在 effect 外可调用的包装函数（用于 useResize/useKeyboard 等避免闭包陈旧） | useEvent / useEffectEvent | 8.x |
+| 12.5 | 文档：api-reference.md、opentui-pytui-comparison.md 更新 TextNode 属性表与 hooks 表 | 文档与差异表更新 | 12.1, 12.3, 12.4 |
+
+**12.1 已完成**：components/text_node.py 为 Span 增加 strikethrough、dim、reverse、blink；core/buffer.py 为 Cell 增加同名字段并写入 _cell_to_ansi（SGR 9/2/7/5）；strikethrough()、dim()、reverse()、blink() 辅助函数；components/__init__.py 导出。  
+**12.2 已完成**：tests/unit/components/test_text_node.py 增加 test_spans_strikethrough_dim_reverse_blink。  
+**12.3 已完成**：react/hooks.py 增加 useTerminalDimensions(ctx)，委托 useResize。  
+**12.4 已完成**：react/hooks.py 增加 useEvent(fn)，稳定引用、每 render 更新 fn；react/__init__.py 导出。  
+**12.5 已完成**：docs/api-reference.md、docs/opentui-pytui-comparison.md 更新 TextNode 属性与 hooks 表。
+
+**里程碑 12**：TextNode 支持 strikethrough/dim/reverse/blink；useTerminalDimensions、useEvent 可用；文档与差异表已更新。
+
+---
+
+### Phase 13: 后处理滤镜（基础）（1–2 周）
+
+**目标**：在 post/filters 中实现与 OpenTUI 对应的基础滤镜，便于效果对齐与示例复用。
+
+| 步骤 | 内容 | 产出 | 依赖 |
+|------|------|------|------|
+| 13.1 | post/filters.py：实现 apply_grayscale(buffer)、apply_sepia(buffer)、apply_invert(buffer)，逐 cell 修改 fg/bg（或底层 buffer 接口） | 三种基础色彩滤镜 | 9.5, 9.7 |
+| 13.2 | post/filters.py：实现 apply_scanlines(buffer, strength, step)，每隔 step 行按 strength 变暗 | 扫描线效果 | 13.1 |
+| 13.3 | post/filters.py：实现 apply_noise(buffer, strength)，对 fg/bg 加随机扰动并钳位 | 噪点效果 | 13.1 |
+| 13.4 | post/filters.py：实现 apply_ascii_art(buffer, ramp)，按背景亮度将字符替换为 ramp 中字符（可选，依赖 buffer 遍历接口） | ASCII 艺术化 | 13.1 |
+| 13.5 | 单元测试：test_filters.py 中为上述新函数增加用例（小 buffer 快照或数值校验） | 测试覆盖新滤镜 | 13.1–13.4 |
+| 13.6 | 文档：api-reference.md 与 opentui-pytui-comparison 更新 post 滤镜列表 | 文档更新 | 13.5 |
+
+**13.1 已完成**：post/filters.py 实现 apply_grayscale(buffer)、apply_sepia(buffer)、apply_invert(buffer)。  
+**13.2 已完成**：apply_scanlines(buffer, strength=0.8, step=2)。  
+**13.3 已完成**：apply_noise(buffer, strength=0.1)。  
+**13.4 已完成**：apply_ascii_art(buffer, ramp=" .:-=+*#%@")。  
+**13.5 已完成**：tests/unit/post/test_filters.py 增加 test_apply_grayscale、test_apply_sepia、test_apply_invert、test_apply_scanlines、test_apply_noise_changes_values、test_apply_ascii_art。  
+**13.6 已完成**：docs/api-reference.md 增加 post (filters) 节；docs/opentui-pytui-comparison.md 9.1 更新为已实现。
+
+**里程碑 13**：基础后处理滤镜可用；文档与差异表已更新。
+
+---
+
+### Phase 14: ASCII 字体与 Selection 扩展（约 1 周）
+
+**目标**：内置字体名与 OpenTUI 对齐；可选提供轻量 Selection/ASCIIFont 选区辅助，便于高级示例。
+
+| 步骤 | 内容 | 产出 | 依赖 |
+|------|------|------|------|
+| 14.1 | components/ascii_font.py：增加 GRID_FONT、HUGE_FONT、PALLET_FONT 常量或从 JSON 加载并 register_font（与 OpenTUI lib/fonts 对应）；若无现成 JSON，可占位或文档说明“需用户提供” | 内置字体名对齐 | 11.1 |
+| 14.2 | utils/selection.py（可选）：实现轻量 Selection 类（start/end 或 range、转局部坐标），以及 ASCIIFontSelectionHelper 的简化版（仅坐标换算），供 ASCIIFont 或示例使用 | 独立 Selection 扩展点 | 11.2, 11.1 |
+| 14.3 | 文档：opentui-pytui-comparison 中 9.7、9.8 更新为“已实现”或“部分实现” | 差异表更新 | 14.1, 14.2 |
+
+**14.1 已完成**：components/ascii_font.py 增加 GRID_FONT、HUGE_FONT、PALLET_FONT（block 风格占位），并注册到 ASCIIFont._fonts；增加 coordinate_to_character_index(text, x, font)；tests/unit/components/test_ascii_font.py 增加 test_grid_huge_pallet_fonts_registered、test_coordinate_to_character_index。  
+**14.2 已完成**：utils/selection.py 实现 Selection（anchor/focus、to_local）、LocalSelectionBounds、convert_global_to_local_selection、ASCIIFontSelectionHelper（get_text/get_font、coordinate_to_character_index、on_local_selection_changed、get_selection）；utils/__init__.py 导出；tests/unit/utils/test_selection.py 新增。  
+**14.3 已完成**：docs/opentui-pytui-comparison.md 9.7、9.8 更新为已实现。
+
+**里程碑 14**：内置字体名与 OpenTUI 对齐（grid/huge/pallet）；Selection 与 ASCIIFontSelectionHelper 可用；文档已更新。
+
+---
+
+### Phase 15: Tree-sitter 与预置语言包（可选，2–3 周）
+
+**目标**：Tree-sitter 集成可选可用；若有预置语言包则提供与 OpenTUI 类似的“开箱即用”体验。
+
+| 步骤 | 内容 | 产出 | 依赖 |
+|------|------|------|------|
+| 15.1 | syntax/languages.py：在已有 get_language/get_parser 基础上，支持从 data_paths 或包内资源加载预编译 .so/.dll（或 tree-sitter-languages 包）中的 Python/JS/TS 等一种或多种语言 | 预置语言包加载 | 10.2, 11.4 |
+| 15.2 | 文档：getting-started 或 syntax 文档说明如何启用 Tree-sitter 与可选语言包；opentui-pytui-comparison 9.5 更新 | 文档与差异表 | 15.1 |
+
+**15.1 已完成**：syntax/languages.py 支持 tree-sitter-languages 优先、data_paths/tree-sitter/languages/*.so 回退；COMMON_LANGUAGE_NAMES、list_available_languages()；tests/unit/syntax/test_languages.py 已增加用例。  
+**15.2 已完成**：getting-started 增加 Tree-sitter 可选安装与 data_paths 说明；opentui-pytui-comparison 9.5 及摘要表已更新；api-reference 增加 get_language、get_parser、list_available_languages、COMMON_LANGUAGE_NAMES。
+
+**验收**：至少一种语言（如 Python）可通过可选依赖或包内资源开箱高亮；文档与差异表更新。不要求与 OpenTUI 的 WASM 方案一致。
+
+**里程碑 15**：Tree-sitter 与预置语言包（tree-sitter-languages 或 data_paths）可用；文档与差异表已更新。
+
+---
+
+### Phase 16: 后处理滤镜（高级）与 CI（可选，按需）
+
+**目标**：实现部分高级滤镜或 CI 拆分，与 OpenTUI 能力进一步对齐；优先级低，可按需裁剪。
+
+| 步骤 | 内容 | 产出 | 依赖 |
+|------|------|------|------|
+| 16.1 | post/filters.py：实现 apply_chromatic_aberration(buffer, strength)（简化版：按距离中心偏移 R/B 通道） | 色差效果 | 13.x |
+| 16.2 | post/filters.py：实现 BlurEffect 占位或简单盒式模糊（半径 1）；或仅文档标明“高级滤镜待实现” | 模糊扩展点 | 9.7 |
+| 16.3 | .github/workflows：可选拆分为 build-and-test、lint、coverage 等独立 job，便于与 OpenTUI 多 workflow 对照 | CI 结构优化 | 无 |
+
+**验收**：至少一项高级滤镜或 CI 调整落地；其余可留作后续迭代。
+
+---
+
+### 10.2 步骤依赖关系简图
+
+```
+Phase 12: 12.1 → 12.2
+           12.3, 12.4 → 12.5
+Phase 13: 13.1 → 13.2, 13.3, 13.4 → 13.5 → 13.6
+Phase 14: 14.1, 14.2 可并行 → 14.3
+Phase 15: 15.1 → 15.2
+Phase 16: 13.x → 16.1, 16.2；16.3 独立
+```
+
+### 10.3 建议执行顺序
+
+1. **先做 Phase 12**：TextNode 属性与 hooks 改动小、收益高，便于后续示例与文档对齐。
+2. **再做 Phase 13**：基础滤镜不依赖其它 Phase，可与 12 并行或紧接其后。
+3. **Phase 14、15、16**：按需排期；14 和 15 可并行，16 可在 13 之后择机做。
+
+完成各 Phase 后，在 [docs/opentui-pytui-comparison.md](docs/opentui-pytui-comparison.md) 中把对应小节标记为「已实现」或「部分实现」，并更新 Summary 表。
 
 ---
 

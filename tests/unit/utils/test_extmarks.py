@@ -2,12 +2,12 @@
 
 import pytest
 
-pytest.importorskip("pytui.utils.extmarks")
+pytest.importorskip("pytui.lib.extmarks")
 
 
 class TestExtmarksStore:
     def test_add_remove(self):
-        from pytui.utils.extmarks import ExtmarksStore
+        from pytui.lib.extmarks import ExtmarksStore
 
         s = ExtmarksStore()
         eid = s.add(0, 5, type_id=1)
@@ -18,7 +18,7 @@ class TestExtmarksStore:
         assert s.remove(999) is False
 
     def test_get_in_range(self):
-        from pytui.utils.extmarks import ExtmarksStore
+        from pytui.lib.extmarks import ExtmarksStore
 
         s = ExtmarksStore()
         s.add(0, 3)
@@ -32,7 +32,7 @@ class TestExtmarksStore:
         assert len(out3) == 0
 
     def test_clear(self):
-        from pytui.utils.extmarks import ExtmarksStore
+        from pytui.lib.extmarks import ExtmarksStore
 
         s = ExtmarksStore()
         s.add(0, 1)

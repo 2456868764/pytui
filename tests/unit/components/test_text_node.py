@@ -56,3 +56,30 @@ class TestTextNode:
         node.render_self(buffer_40x20)
         assert buffer_40x20.get_cell(0, 0).char == "c"
         assert buffer_40x20.get_cell(4, 0).char == "k"
+
+    def test_spans_strikethrough_dim_reverse_blink(self, mock_context, buffer_40x20):
+        from pytui.components.text_node import TextNode, blink, dim, reverse, strikethrough
+
+        node = TextNode(
+            mock_context,
+            {
+                "spans": [
+                    strikethrough("S"),
+                    dim("D"),
+                    reverse("R"),
+                    blink("B"),
+                ],
+                "width": 10,
+                "height": 1,
+            },
+        )
+        node.x, node.y, node.width, node.height = 0, 0, 10, 1
+        node.render_self(buffer_40x20)
+        assert buffer_40x20.get_cell(0, 0).char == "S"
+        assert buffer_40x20.get_cell(0, 0).strikethrough is True
+        assert buffer_40x20.get_cell(1, 0).char == "D"
+        assert buffer_40x20.get_cell(1, 0).dim is True
+        assert buffer_40x20.get_cell(2, 0).char == "R"
+        assert buffer_40x20.get_cell(2, 0).reverse is True
+        assert buffer_40x20.get_cell(3, 0).char == "B"
+        assert buffer_40x20.get_cell(3, 0).blink is True

@@ -8,6 +8,13 @@ description = "Rust native extension for pytui (Buffer, Cell, TextBuffer)"
 name = "pytui_native"
 crate-type = ["cdylib"]
 
+[features]
+# Enable when running `cargo test --features test` so the test binary links libpython.
+test = []
+
+[build-dependencies]
+pyo3-build-config = "0.20"
+
 [dependencies]
 pyo3 = { version = "0.20", features = ["extension-module"] }
 unicode-width = "0.1"

@@ -19,6 +19,10 @@ class TestCell:
         assert c.bold is False
         assert c.italic is False
         assert c.underline is False
+        assert c.strikethrough is False
+        assert c.dim is False
+        assert c.reverse is False
+        assert c.blink is False
 
     def test_custom_values(self):
         from pytui.core.buffer import Cell
@@ -46,3 +50,12 @@ class TestCell:
         if native is not None:
             assert native.char == "y"
             assert native.fg == (10, 20, 30, 255)
+
+    def test_custom_values_strikethrough_dim_reverse_blink(self):
+        from pytui.core.buffer import Cell
+
+        c = Cell(char="x", strikethrough=True, dim=True, reverse=True, blink=True)
+        assert c.strikethrough is True
+        assert c.dim is True
+        assert c.reverse is True
+        assert c.blink is True

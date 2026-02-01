@@ -1,4 +1,5 @@
-# pytui.testing.mock_mouse - 可注入鼠标输入的 Mock
+# pytui.testing.mock_mouse - Aligns with OpenTUI packages/core/src/testing/mock-mouse.ts
+# createMockMouse(renderer) -> MockMouse with feed(data).
 
 
 from __future__ import annotations

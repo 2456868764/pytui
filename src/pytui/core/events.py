@@ -1,6 +1,9 @@
-# pytui.core.events - event bus
+# pytui.core.events - event bus; aligns with OpenTUI event model (EventEmitter).
+
+from __future__ import annotations
 
 from pyee import EventEmitter
 
-# EventBus is an EventEmitter for app-level events (resize, keypress, etc.)
+# EventBus: app-level events (resize, keypress, frame, etc.). OpenTUI uses EventEmitter;
+# event names align: "resize", "keypress", "keyrelease", "paste", "frame", "mouse", etc.
 EventBus = EventEmitter

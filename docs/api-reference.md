@@ -4,8 +4,8 @@
 
 ### Renderer
 
-- `Renderer(width=None, height=None, target_fps=60, use_alternate_screen=True, use_mouse=False)`  
-  Create the renderer; width/height default to terminal size.
+- `Renderer(width=None, height=None, target_fps=60, use_alternate_screen=True, use_mouse=False, exit_on_ctrl_c=True)`  
+  Create the renderer; width/height default to terminal size. Set `exit_on_ctrl_c=False` to handle Ctrl+C manually.
 - `renderer.start()` / `renderer.stop()`  
   Enter main loop / stop.
 - `renderer.root`  
@@ -56,9 +56,12 @@
 ### KeyboardHandler
 
 - `feed(data: str | bytes)`  
-  Feed input; parses escape sequences and emits `keypress` with {name, char, ctrl, alt, shift}.
-- `on("keypress", handler)` / `remove_listener("keypress", handler)`  
-  Subscribe/unsubscribe to keypress events.
+  Feed input; parses escape sequences and emits `keypress` (KeyEvent-like) and `paste` (bracketed paste).
+- **KeyEvent** (keypress payload): name, char, ctrl, shift, alt, **sequence** (raw escape sequence), **meta** (=alt), **option** (=alt). Aligns with [OpenTUI KeyEvent](https://opentui.com/docs/core-concepts/keyboard/).
+- `on("keypress", handler)` / `on("paste", handler)`  
+  Subscribe to keypress or paste events. Paste event payload: `{ text }`. Renderer forwards both to `renderer.events`.
+- `remove_listener("keypress", handler)`  
+  Unsubscribe from keypress.
 
 ### MouseHandler
 
@@ -67,17 +70,34 @@
 - `on("mouse", handler)`  
   event: x, y, button, release, motion.
 
+### Colors (OpenTUI-aligned)
+
+- **parse_color(value)**  
+  Returns `(r, g, b, a)` tuple. Accepts: hex (`#rrggbb`, `#rgb`, `#rrggbbaa`), CSS names (red, white, black, green, blue, yellow, cyan, magenta, orange, gray, grey, purple), `"transparent"`, or RGBA instance (pass-through). See [OpenTUI Colors](https://opentui.com/docs/core-concepts/colors/).
+- **RGBA**  
+  `from_ints(r, g, b, a=255)`, `from_values(r, g, b, a=1.0)`, `from_hex("#rrggbb" | "#rrggbbaa")`, `to_tuple()`.
+- **OptimizedBuffer.blend_color(fg, bg, alpha)**  
+  Blend two (r,g,b,a) tuples; returns (r,g,b,a).
+- **OptimizedBuffer.set_cell_with_alpha(x, y, cell, alpha)**  
+  Set cell; if alpha &lt; 1, blend with existing cell.
+
 ### EditBuffer / EditorView
 
 - **EditBuffer**: `set_text`, `get_lines`, `insert`, `delete`, `undo`, `redo`, `pos_to_line_col`, `line_col_to_pos`.
 - **EditorView**: Binds to EditBuffer; `cursor_pos`, `scroll_y`, `view_width`/`view_height`, `get_visible_lines`, `set_cursor`, `set_cursor_line_col`, `get_selection_range`, `insert`, `delete_backward`, `delete_forward`, `undo`, `redo`, `ensure_cursor_visible`.
 
-### Console
+### Console (overlay)
 
-- `Console(width=None, height=None, target_fps=30, ...)`  
-  Wraps Terminal + Renderer.
-- `console.run(mount=None)`  
-  If mount is provided, add it to root and start().
+- **ConsoleBuffer(max_lines=500)**  
+  Lines are `(text, level)` with level "log"|"info"|"warn"|"error"|"debug". `append(text, level="log")`, `lines`, `clear()`.
+- **ConsoleOverlay(ctx, options)**  
+  options: buffer, position ("top"|"bottom"|"left"|"right"), fg, bg, color_info, color_warn, color_error. When focused, arrow keys scroll. Aligns with [OpenTUI Console](https://opentui.com/docs/core-concepts/console/).
+- **ConsoleController(overlay, renderer)**  
+  `toggle()` — focus overlay when not focused, blur when focused.
+- **capture_stdout(buffer, also_stdout=True, stderr_to_buffer=False, stderr_level="error")**  
+  Context manager: redirect stdout (and optionally stderr) to buffer; stderr lines get the given level.
+- **Console(width=None, ...)**  
+  Wraps Terminal + Renderer. `console.run(mount=None)` adds mount to root and start().
 
 ---
 
@@ -87,7 +107,8 @@
   options: content, width, height, fg, bg, bold, italic, underline.  
   `set_content(text)` to update.
 - **TextNode(ctx, options)**  
-  options: spans (list of Span / bold/italic/underline/line_break/link), width, height.
+  options: spans (list of Span or bold/italic/underline/strikethrough/dim/reverse/blink/line_break/link), width, height, fg, bg.  
+  Span and helpers: strikethrough(text), dim(text), reverse(text), blink(text); SGR 9/2/7/5.
 - **Box(ctx, options)**  
   options: width, height, border, border_style, title, border_color, background_color.  
   border=True sets padding=1.
@@ -108,7 +129,7 @@
   When focused, up/down or j/k scroll; `scroll_up`, `scroll_down`, `set_scroll`.  
   Overrides `render()` to apply scroll_y offset and viewport clipping for children.
 - **Code(ctx, options)**  
-  options: content, language, width, height, show_line_numbers, show_diff, show_diagnostics, diagnostics (list of (line_0based, severity)), theme, fg, bg, line_num_fg, diff_add_fg, diff_remove_fg, diag_error_fg, diag_warning_fg.
+  options: content, language, width, height, show_line_numbers, show_diff, show_diagnostics, diagnostics (list of (line_0based, severity)), theme.
 - **Diff(ctx, options)**  
   options: old_text, new_text, width, height, add_fg, del_fg, context_fg.
 - **ASCIIFont(ctx, options)**  
@@ -138,6 +159,10 @@
   Returns `ctx.renderer`.
 - **useResize(ctx)**  
   Returns (width, height); updates on resize event.
+- **useTerminalDimensions(ctx)**  
+  Returns (width, height); same as useResize (updates on resize).
+- **useEvent(fn)**  
+  Returns a stable callback that invokes the latest fn each render; use in handlers registered once (e.g. in useEffect(setup, [])) to avoid stale closures.
 - **useKeyboard(ctx)**  
   Returns `ctx.renderer.events` for keypress (use for global handlers; focused components often use `ctx.renderer.keyboard`).
 - **useTimeline(ctx)**  
@@ -151,12 +176,41 @@
 
 ---
 
+## post (filters)
+
+- **apply_dim(buffer, alpha=0.5)**  
+  Dim buffer (blend fg/bg with black); alpha=1 no change, alpha=0 full black.
+- **apply_grayscale(buffer)**  
+  Convert fg/bg to grayscale (luminance 0.299R + 0.587G + 0.114B).
+- **apply_sepia(buffer)**  
+  Apply sepia tone to fg/bg.
+- **apply_invert(buffer)**  
+  Invert RGB (255 − component); alpha unchanged.
+- **apply_scanlines(buffer, strength=0.8, step=2)**  
+  Darken every `step`-th row by `strength`.
+- **apply_noise(buffer, strength=0.1)**  
+  Add random noise to fg/bg; clamp to 0–255.
+- **apply_ascii_art(buffer, ramp=" .:-=+*#%@")**  
+  Replace each cell char by ramp character from background luminance.
+- **apply_blur_placeholder(buffer, _radius=1)**  
+  Placeholder; no-op.
+
+---
+
 ## syntax
 
 - **highlight(code, language="python")**  
   Returns `[(text, token_type), ...]`; falls back to plain when tree-sitter is unavailable.
 - **get_theme(name)**  
   Returns token_type → RGBA color map.
+- **get_language(name)**  
+  Loads a tree-sitter language (e.g. `"python"`, `"javascript"`). Tries `tree-sitter-languages` first, then `get_data_dir()/tree-sitter/languages/<name>.so`. Returns `None` if not installed or unavailable.
+- **get_parser(language=None)**  
+  Returns a configured tree-sitter Parser for the given language (default `"python"`). Returns `None` if the language cannot be loaded.
+- **list_available_languages()**  
+  Returns a sorted list of language names that load successfully (from `tree-sitter-languages` or data_paths).
+- **COMMON_LANGUAGE_NAMES**  
+  Tuple of common language names: python, javascript, typescript, go, rust, json, html, css, bash, c, cpp.
 
 ---
 

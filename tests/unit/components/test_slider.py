@@ -23,10 +23,10 @@ class TestSlider:
             {"min": 0, "max": 10, "value": 5, "width": 10, "height": 1},
         )
         events = []
-        s.on("change", lambda v: events.append(v))
+        s.on("change", lambda e: events.append(e))
         s.set_value(8)
         assert s.value == 8
-        assert events == [8]
+        assert len(events) == 1 and (events[0].get("value") == 8 if isinstance(events[0], dict) else events[0] == 8)
         s.set_value(100)
         assert s.value == 10
         s.set_value(-1)

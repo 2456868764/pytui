@@ -2,25 +2,25 @@
 
 import pytest
 
-pytest.importorskip("pytui.utils.data_paths")
+pytest.importorskip("pytui.lib.data_paths")
 
 
 class TestDataPaths:
     def test_get_data_dir(self):
-        from pytui.utils.data_paths import get_data_dir
+        from pytui.lib.data_paths import get_data_dir
 
         p = get_data_dir("pytui")
         assert "pytui" in str(p)
 
     def test_get_cache_dir(self):
-        from pytui.utils.data_paths import get_cache_dir
+        from pytui.lib.data_paths import get_cache_dir
 
         p = get_cache_dir("pytui")
         assert "pytui" in str(p)
 
     def test_ensure_dirs(self, tmp_path):
         import os
-        from pytui.utils.data_paths import ensure_cache_dir, ensure_data_dir, get_cache_dir, get_data_dir
+        from pytui.lib.data_paths import ensure_cache_dir, ensure_data_dir, get_cache_dir, get_data_dir
 
         # 使用 tmp_path 避免写入 ~/.local（沙箱可能无权限）
         data_root = tmp_path / "data"

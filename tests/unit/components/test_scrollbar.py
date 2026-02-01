@@ -28,7 +28,8 @@ class TestScrollBar:
         assert sb.scroll_value == 3
         assert events == [3]
         sb.set_scroll_value(10)
-        assert sb.scroll_value == 5
+        # scroll_position clamped to scroll_size - viewport_size = 5 - 1 = 4
+        assert sb.scroll_value == 4
         sb.set_scroll_value(-1)
         assert sb.scroll_value == 0
 
@@ -37,14 +38,14 @@ class TestScrollBar:
 
         sb = ScrollBar(
             mock_context,
-            {"scroll_max": 10, "scroll_value": 0, "width": 1, "height": 5},
+            {"scroll_max": 10, "scroll_value": 0, "viewport_size": 1, "width": 1, "height": 5},
         )
         sb.x, sb.y, sb.width, sb.height = 0, 0, 1, 5
-        assert sb._value_to_row() == 0
-        sb._scroll_value = 10
-        assert sb._value_to_row() == 4
-        assert sb._row_to_value(0) == 0
-        assert sb._row_to_value(4) == 10
+        assert sb.value_to_row() == 0
+        sb.scroll_position = 9  # max position when scroll_size=10, viewport_size=1
+        assert sb.value_to_row() == 4
+        assert sb.row_to_value(0) == 0
+        assert sb.row_to_value(4) == 9
 
     def test_render_self_draws_track_and_thumb(self, mock_context, buffer_10x5):
         from pytui.components.scrollbar import ScrollBar

@@ -1,4 +1,5 @@
-# pytui.testing.mock_keys - 可注入键盘输入的 Mock
+# pytui.testing.mock_keys - Aligns with OpenTUI packages/core/src/testing/mock-keys.ts
+# createMockKeys(renderer, options?) -> MockKeys with feed(sequence).
 
 
 from __future__ import annotations

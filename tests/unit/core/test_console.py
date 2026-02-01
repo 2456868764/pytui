@@ -14,14 +14,14 @@ class TestConsoleBuffer:
 
         buf = ConsoleBuffer()
         buf.append("hello")
-        assert buf.lines == ["hello"]
+        assert buf.lines == [("hello", "log")]
 
     def test_append_multiple_lines(self):
         from pytui.core.console import ConsoleBuffer
 
         buf = ConsoleBuffer()
         buf.append("a\nb\nc")
-        assert buf.lines == ["a", "b", "c"]
+        assert buf.lines == [("a", "log"), ("b", "log"), ("c", "log")]
 
     def test_append_empty_no_line(self):
         from pytui.core.console import ConsoleBuffer
@@ -30,6 +30,14 @@ class TestConsoleBuffer:
         buf.append("")
         assert buf.lines == []
 
+    def test_append_with_level(self):
+        from pytui.core.console import ConsoleBuffer
+
+        buf = ConsoleBuffer()
+        buf.append("err", level="error")
+        buf.append("warn", level="warn")
+        assert buf.lines == [("err", "error"), ("warn", "warn")]
+
     def test_max_lines_caps(self):
         from pytui.core.console import ConsoleBuffer
 
@@ -37,9 +45,9 @@ class TestConsoleBuffer:
         buf.append("1")
         buf.append("2")
         buf.append("3")
-        assert buf.lines == ["1", "2", "3"]
+        assert buf.lines == [("1", "log"), ("2", "log"), ("3", "log")]
         buf.append("4")
-        assert buf.lines == ["2", "3", "4"]
+        assert buf.lines == [("2", "log"), ("3", "log"), ("4", "log")]
 
     def test_clear(self):
         from pytui.core.console import ConsoleBuffer
@@ -115,7 +123,7 @@ class TestCaptureStdout:
         buf = ConsoleBuffer()
         with capture_stdout(buf, also_stdout=False):
             print("hello", end="")
-        assert buf.lines == ["hello"]
+        assert buf.lines == [("hello", "log")]
 
     def test_capture_stdout_also_stdout(self):
         from pytui.core.console import ConsoleBuffer, capture_stdout
@@ -127,10 +135,24 @@ class TestCaptureStdout:
             sys.stdout = out
             with capture_stdout(buf, also_stdout=True):
                 print("x", end="")
-            assert buf.lines == ["x"]
+            assert buf.lines == [("x", "log")]
             assert out.getvalue() == "x"
         finally:
             sys.stdout = old
+
+    def test_capture_stdout_stderr_to_buffer(self):
+        from pytui.core.console import ConsoleBuffer, capture_stdout
+
+        buf = ConsoleBuffer()
+        with capture_stdout(buf, also_stdout=False, stderr_to_buffer=True):
+            print("out", end="")
+            sys.stderr.write("err")
+        assert len(buf.lines) >= 2
+        texts = [line[0] for line in buf.lines]
+        assert "out" in texts
+        assert "err" in texts
+        levels = [line[1] for line in buf.lines]
+        assert "error" in levels
 
 
 def _mock_ctx(width: int, height: int):

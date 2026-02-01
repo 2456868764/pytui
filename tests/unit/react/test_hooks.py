@@ -138,9 +138,72 @@ class TestHooks:
                 comp = inst[1]
                 break
         assert comp is not None
-        assert comp._hook_state_list[0] == (20, 5)
+        assert comp._hook_state_list[0] == {"width": 20, "height": 5}
         renderer.events.emit("resize", 30, 8)
-        assert comp._hook_state_list[0] == (30, 8)
+        assert comp._hook_state_list[0] == {"width": 30, "height": 8}
+
+    def test_useTerminalDimensions_returns_same_as_useResize(self):
+        from pytui.react import Component, useTerminalDimensions, h
+        from pytui.react.reconciler import reconcile
+        from pytui.core.renderer import Renderer
+
+        class C(Component):
+            def render(self):
+                size = useTerminalDimensions(self.ctx)
+                return {
+                    "type": "text",
+                    "props": {"content": f"{size[0]}x{size[1]}", "width": 10, "height": 1},
+                    "children": [],
+                }
+
+        renderer = Renderer(width=25, height=6, target_fps=0)
+        reconcile(h(C, {}), renderer.root)
+        comp = None
+        for _, inst in getattr(renderer.root, "_react_children", []):
+            if isinstance(inst, tuple) and len(inst) >= 2 and inst[0] == "component":
+                comp = inst[1]
+                break
+        assert comp is not None
+        assert comp._hook_state_list[0] == {"width": 25, "height": 6}
+        renderer.events.emit("resize", 40, 10)
+        assert comp._hook_state_list[0] == {"width": 40, "height": 10}
+
+    def test_useEvent_returns_stable_callback_invokes_latest_fn(self, mock_context):
+        from pytui.react import Component, useState, useEvent, h
+        from pytui.react.reconciler import reconcile
+        from pytui.core.renderer import Renderer
+
+        log = []
+
+        class C(Component):
+            def render(self):
+                count, set_count = useState(0)
+                on_click = useEvent(lambda: log.append(count))
+                self._on_click = on_click
+                self._set_count = set_count
+                return {"type": "text", "props": {"content": str(count), "width": 5, "height": 1}, "children": []}
+
+        renderer = Renderer(width=20, height=5, target_fps=0)
+        reconcile(h(C, {}), renderer.root)
+        comp = None
+        for _, inst in getattr(renderer.root, "_react_children", []):
+            if isinstance(inst, tuple) and len(inst) >= 2 and inst[0] == "component":
+                comp = inst[1]
+                break
+        assert comp is not None
+        # Same callback reference across conceptual "re-renders"
+        cb1 = comp._on_click
+        comp._hook_index = 0
+        comp._set_count(1)
+        comp.update()
+        cb2 = comp._on_click
+        assert cb1 is cb2
+        comp._on_click()
+        assert log == [1]
+        comp._set_count(2)
+        comp.update()
+        comp._on_click()
+        assert log == [1, 2]
 
     def test_useEffect_stores_effect(self, mock_context):
         from pytui.react import Component, useState, useEffect, h
@@ -160,30 +223,35 @@ class TestHooks:
         assert ran == [1]
 
     def test_useTimeline_returns_elapsed_and_updates_on_frame_event(self):
-        import time
-
         from pytui.react import Component, useTimeline, h
         from pytui.react.reconciler import reconcile
         from pytui.core.renderer import Renderer
+        from pytui.core.animation import engine
 
         class C(Component):
             def render(self):
                 tl = useTimeline(self.ctx)
+                elapsed = getattr(tl, "current_time", 0.0)
                 return {
                     "type": "text",
-                    "props": {"content": f"{tl['elapsed']:.1f}", "width": 10, "height": 1},
+                    "props": {"content": f"{elapsed:.1f}", "width": 10, "height": 1},
                     "children": [],
                 }
 
         renderer = Renderer(width=20, height=5, target_fps=0)
         reconcile(h(C, {}), renderer.root)
         comp = None
+        timeline = None
         for _, inst in getattr(renderer.root, "_react_children", []):
             if isinstance(inst, tuple) and len(inst) >= 2 and inst[0] == "component":
                 comp = inst[1]
                 break
         assert comp is not None
-        assert comp._hook_state_list[0] == 0.0
-        t_future = time.time() + 1.0
-        renderer.events.emit("frame", t_future)
-        assert 0.9 <= comp._hook_state_list[0] <= 1.1
+        # useTimeline returns Timeline; engine drives it
+        for t in engine._timelines:
+            timeline = t
+            break
+        assert timeline is not None
+        assert getattr(timeline, "current_time", 0) == 0.0
+        engine.update(1.0)
+        assert 0.9 <= getattr(timeline, "current_time", 0) <= 1.1

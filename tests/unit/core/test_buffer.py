@@ -1,4 +1,4 @@
-# tests/unit/core/test_buffer.py
+# tests/unit/core/test_buffer.py - Aligns with OpenTUI packages/core/src/buffer.test.ts
 """OptimizedBuffer 单元测试。"""
 
 import pytest
@@ -74,6 +74,19 @@ class TestOptimizedBuffer:
         assert "\x1b" in ansi
         assert "A" in ansi
 
+    def test_to_ansi_includes_sgr_strikethrough_dim_reverse_blink(self, buffer_10x5):
+        from pytui.core.buffer import Cell
+
+        buf = buffer_10x5
+        buf.set_cell(0, 0, Cell(char="X", strikethrough=True, dim=True, reverse=True, blink=True))
+        ansi = buf.to_ansi()
+        # SGR: dim=2, blink=5, reverse=7, strikethrough=9
+        assert "2;" in ansi or "2m" in ansi
+        assert "5;" in ansi or "5m" in ansi
+        assert "7;" in ansi or "7m" in ansi
+        assert "9;" in ansi or "9m" in ansi
+        assert "X" in ansi
+
     def test_blend_color(self):
         from pytui.core.buffer import OptimizedBuffer
 
@@ -104,3 +117,42 @@ class TestOptimizedBuffer:
         assert c.char == "Y"
         assert 100 < c.fg[0] < 200
         assert 100 < c.fg[1] < 200
+
+    def test_create_class_method(self):
+        """Align buffer.test.ts: OptimizedBuffer.create(20, 5, 'unicode', { id: 'test-buffer' })."""
+        from pytui.core.buffer import OptimizedBuffer
+
+        buf = OptimizedBuffer.create(20, 5, "unicode", {"id": "test-buffer"})
+        assert buf.width == 20
+        assert buf.height == 5
+        assert buf.width_method == "unicode"
+        buf.destroy()
+
+    def test_create_with_respect_alpha(self):
+        from pytui.core.buffer import OptimizedBuffer
+
+        buf = OptimizedBuffer.create(10, 10, "wcwidth", {"respect_alpha": True})
+        assert buf.respect_alpha is True
+        buf.destroy()
+
+    def test_destroy_no_op_twice(self):
+        from pytui.core.buffer import OptimizedBuffer
+
+        buf = OptimizedBuffer.create(5, 5, "unicode")
+        buf.destroy()
+        buf.destroy()  # second call no-op
+
+    def test_after_destroy_raises(self, buffer_10x5):
+        """After destroy(), any use should raise (align OpenTUI guard())."""
+        from pytui.core.buffer import Cell, OptimizedBuffer
+
+        buf = OptimizedBuffer.create(10, 5, "unicode")
+        buf.destroy()
+        with pytest.raises(RuntimeError, match="destroyed"):
+            buf.set_cell(0, 0, Cell(char="x"))
+        with pytest.raises(RuntimeError, match="destroyed"):
+            buf.get_cell(0, 0)
+        with pytest.raises(RuntimeError, match="destroyed"):
+            buf.clear()
+        with pytest.raises(RuntimeError, match="destroyed"):
+            buf.draw_text("hi", 0, 0, (255, 255, 255, 255))

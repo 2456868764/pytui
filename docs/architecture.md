@@ -4,16 +4,28 @@
 
 ```
 pytui/
-├── core/          # Buffer, layout, render tree, renderer, terminal, keyboard, mouse,
-│                  # edit_buffer, editor_view, console, animation, terminal_palette
-├── components/    # Text, Box, Input, Select, Textarea, Scrollbox, Code, Diff,
+├── lib/            # All lib-level functionality (aligns with OpenTUI lib/)
+│                  # border, key_handler, rgba, parse_keypress, scroll_acceleration,
+│                  # stdin_buffer, styled_text, parse_mouse, selection, env,
+│                  # tree_sitter_styled_text, tree_sitter, data_paths, extmarks,
+│                  # terminal_palette, bunfs, debounce, keymapping, queue, etc.
+│                  # Use: from pytui.lib import RGBA, KeyHandler, get_tree_sitter_client, ...
+├── core/           # Buffer, layout, render tree, renderer, terminal, keyboard, mouse,
+│                  # edit_buffer, editor_view, console, animation
+│                  # (RGBA/colors/terminal_palette: use pytui.lib; core no longer re-exports)
+├── components/     # Text, Box, Input, Select, Textarea, Scrollbox, Code, Diff,
 │                  # ASCIIFont, LineNumber, TabSelect, Slider, ScrollBar, FrameBuffer
-├── react/         # Component, hooks (useState, useEffect, useRenderer, useResize,
+├── react/          # Component, hooks (useState, useEffect, useRenderer, useResize,
 │                  # useKeyboard, useTimeline), create_element/h, reconciler
-├── syntax/        # themes, highlighter (optional tree-sitter), languages
-├── utils/         # diff_lines, extmarks, scroll_acceleration, validation
-└── native/        # Optional Rust extension: Cell, Buffer (maturin develop)
+├── syntax/         # themes, highlighter (optional tree-sitter), languages
+├── utils/          # diff_lines, extmarks, scroll_acceleration, validation
+│                  # (re-exports from lib where applicable for backward compatibility)
+└── native/         # Optional Rust extension: Cell, Buffer (maturin develop)
 ```
+
+### Lib vs core/utils
+
+All lib-level functionality lives in **`pytui.lib`**, aligned with OpenTUI’s `lib/`. Use `from pytui.lib import ...` for colors (parse_color, parse_color_to_tuple), RGBA, and terminal palette (TerminalPalette, create_terminal_palette, detect_capability, get_palette_color). **core** no longer re-exports colors/rgba/terminal_palette (removed to avoid duplication per alignment plan). **utils** may re-export from lib where applicable (e.g. extmarks).
 
 ## Render flow
 
@@ -24,8 +36,8 @@ pytui/
 
 ## Layout
 
-- **LayoutNode**: Wraps yoga-layout (if installed) or a built-in stub. The stub supports width/height, padding, and vertical stacking of children.
-- **Stub without Yoga**: Children without an explicit `height` receive the full inner height from the parent, which can push siblings off-screen. In declarative UIs, set `height: 1` on title/hint Text and give content areas (Code, Diff, Scrollbox) explicit heights.
+- **LayoutNode**: Wraps yoga-layout (if installed) or a built-in stub. The stub implements flexbox-like layout: **flex_direction** (row/column/reverse), **justify_content** (flex-start/end/center/space-between/space-around/space-evenly), **align_items** (flex-start/end/center/stretch), **flex_grow**, **gap**, padding, and % **width**/**height** (resolved from parent inner size). See [OpenTUI Layout](https://opentui.com/docs/core-concepts/layout/) and [opentui-pytui-comparison](opentui-pytui-comparison.md) §0A.
+- **Stub without Yoga**: Margin and absolute positioning are not applied; use Yoga/poga for full parity. Children without explicit size may get 0; set `width`/`height` on Text and content areas as needed.
 - **Box** with `border=True` sets padding=1 automatically; content is drawn inside the border.
 
 ## Declarative API (React-like)

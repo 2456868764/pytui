@@ -8,6 +8,7 @@
 
 ## Features
 
+- **lib**: All lib-level functionality (aligns with OpenTUI lib): RGBA, KeyHandler, styled_text, tree_sitter, tree_sitter_styled_text, selection, data_paths, extmarks, terminal_palette, bunfs, debounce, keymapping, queue, etc. Use `from pytui.lib import ...`; core/utils re-export for backward compatibility.
 - **core**: Buffer, ANSI, colors, layout (Yoga or stub), events, renderable, renderer, terminal, keyboard, mouse, console, edit_buffer, editor_view
 - **components**: Text, Box, Input, Select, Textarea, Scrollbox, Code, Diff, ASCIIFont, LineNumber, TabSelect, Slider, FrameBuffer
 - **react**: Component, useState, useEffect, h(), reconcile (declarative API)

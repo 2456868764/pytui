@@ -1,335 +1,287 @@
-# pytui.components.ascii_font - 艺术字组件（可选多套字体 JSON）
-
+# pytui.components.ascii_font - ASCIIFont renderable; aligns with OpenTUI ASCIIFontRenderable (ASCIIFont.ts).
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any
 
-from pytui.core.buffer import Cell, OptimizedBuffer
-from pytui.core.colors import parse_color
-from pytui.core.renderable import Renderable
+from pytui.components.frame_buffer import FrameBuffer
+from pytui.lib.ascii_font import (
+    get_character_positions,
+    get_font,
+    measure_text,
+    register_font,
+    render_font_to_frame_buffer,
+)
+from pytui.lib.rgba import parse_color_to_tuple
+from pytui.lib.selection import (
+    ASCIIFontSelectionHelper,
+    LocalSelectionBounds,
+    convert_global_to_local_selection,
+)
 
-# RGBA tuple
-ColorTuple = tuple[int, int, int, int]
-
-# 内置 tiny 字体（简化版，参考 cfonts）
-TINY_FONT = {
-    "name": "tiny",
-    "lines": 2,
-    "letterspace_size": 1,
-    "chars": {
-        "A": ["▄▀█", "█▀█"],
-        "B": ["█▄▄", "█▄█"],
-        "C": ["█▀▀", "█▄▄"],
-        "D": ["█▀▄", "█▄▀"],
-        "E": ["█▀▀", "██▄"],
-        "F": ["█▀▀", "█▀ "],
-        "G": ["█▀▀", "█▄█"],
-        "H": ["█ █", "█▀█"],
-        "I": ["█", "█"],
-        "J": ["  █", "█▄█"],
-        "K": ["█▄▀", "█ █"],
-        "L": ["█  ", "█▄▄"],
-        "M": ["█▀▄▀█", "█ ▀ █"],
-        "N": ["█▄ █", "█ ▀█"],
-        "O": ["█▀█", "█▄█"],
-        "P": ["█▀█", "█▀▀"],
-        "Q": ["█▀█", "▀▀█"],
-        "R": ["█▀█", "█▀▄"],
-        "S": ["█▀▀", "▄▄█"],
-        "T": ["▀█▀", " █ "],
-        "U": ["█ █", "█▄█"],
-        "V": ["█ █", "▀▄▀"],
-        "W": ["█ █ █", "▀▄▀▄▀"],
-        "X": ["▀▄▀", "█ █"],
-        "Y": ["█▄█", " █ "],
-        "Z": ["▀█", "█▄"],
-        "0": ["▞█▚", "▚█▞"],
-        "1": ["▄█", " █"],
-        "2": ["▀█", "█▄"],
-        " ": [" ", " "],
-        ".": [" ", "▄"],
-        "!": ["█", "▄"],
-        "?": ["▀█", " ▄"],
-        "-": ["▄▄", "  "],
-        "_": ["  ", "▄▄"],
-    },
-}
-
-# 内置 block 风格（方块体，3 行高，与 tiny 区分）
-BLOCK_FONT = {
-    "name": "block",
-    "lines": 3,
-    "letterspace_size": 0,
-    "chars": {
-        "A": [" ▄▄ ", "█  █", "█▄▄█"],
-        "B": ["█▄▄ ", "█  █", "█▄▄ "],
-        "C": [" ▄▄▄", "█   ", " ▀▀▀"],
-        "D": ["█▄▄ ", "█  █", "█▄▄ "],
-        "E": ["█▄▄▄", "█   ", "█▄▄▄"],
-        "F": ["█▄▄▄", "█   ", "█   "],
-        "G": [" ▄▄▄", "█  ▄", " ▀▀█"],
-        "H": ["█  █", "█▄▄█", "█  █"],
-        "I": ["▄█▄", " █ ", "▀█▀"],
-        "J": ["   █", "   █", "▄▄█ "],
-        "K": ["█  █", "█▄▄ ", "█  █"],
-        "L": ["█   ", "█   ", "█▄▄▄"],
-        "M": ["█ █ █", "██ ██", "█   █"],
-        "N": ["█   █", "██  █", "█  ██"],
-        "O": [" ▄▄ ", "█  █", " ▀▀ "],
-        "P": ["█▄▄ ", "█  █", "█   "],
-        "Q": [" ▄▄ ", "█  █", " ▀▀█"],
-        "R": ["█▄▄ ", "█  █", "█  █"],
-        "S": [" ▄▄▄", " ▀▀ ", "▄▄▄ "],
-        "T": ["▀█▀", " █ ", " █ "],
-        "U": ["█  █", "█  █", " ▀▀ "],
-        "V": ["█   █", " █ █ ", "  █  "],
-        "W": ["█   █", "█ █ █", " █ █ "],
-        "X": ["█   █", " █ █ ", "█   █"],
-        "Y": ["█   █", " █ █ ", "  █  "],
-        "Z": ["▀▀▀", " ▄█ ", "▀▀▀ "],
-        "0": [" ▄▄ ", "█ ██", " ▀▀ "],
-        "1": [" █ ", "▄█ ", " █ "],
-        "2": [" ▄▄ ", "  █ ", "▄▄▄ "],
-        " ": ["   ", "   ", "   "],
-        ".": ["   ", "   ", " █ "],
-        "!": [" █ ", " █ ", " █ "],
-        "?": [" ▄▄ ", "  █ ", " █  "],
-        "-": ["    ", " ▄▄ ", "    "],
-        "_": ["    ", "    ", "    "],
-    },
-}
-
-# slick / shade 使用 block 风格（与 tiny 明显区分即可）
-SLICK_FONT = {**BLOCK_FONT, "name": "slick"}
-SHADE_FONT = {**BLOCK_FONT, "name": "shade"}
+# Re-export for lib/selection and consumers
+def coordinate_to_character_index(x: int, text: str, font: str | dict[str, Any] = "tiny") -> int:
+    """Map local x to character index. Aligns with OpenTUI coordinateToCharacterIndex()."""
+    from pytui.lib.ascii_font import coordinate_to_character_index as _impl
+    return _impl(x, text, font)
 
 
-# 未知字符用空格
-def _char_lines(font: dict, ch: str) -> list[str]:
-    c = font["chars"].get(ch.upper(), font["chars"].get(" ", [" ", " "]))
-    return c if isinstance(c[0], str) else [" ", " "]
+# Align with OpenTUI: TINY_FONT = fonts.tiny (first font name)
+TINY_FONT = "tiny"
+
+# Preload grid/huge/pallet for tests that expect ASCIIFont._fonts and GRID_FONT etc.
+_fonts: dict[str, Any] = {}
+for _name in ("grid", "huge", "pallet"):
+    try:
+        _font_def = get_font(_name)
+        if _font_def.get("name") or _font_def.get("chars"):
+            _fonts[_name] = _font_def
+    except Exception:
+        pass
+GRID_FONT = _fonts.get("grid", "grid")
+HUGE_FONT = _fonts.get("huge", "huge")
+PALLET_FONT = _fonts.get("pallet", "pallet")
 
 
-def measure_text(text: str, font: dict | None = None) -> tuple[int, int]:
-    """返回 (width, height)。"""
-    font = font or TINY_FONT
-    lines_count = font["lines"]
-    letter_space = font.get("letterspace_size", 1)
-    w = 0
-    for i, ch in enumerate(text):
-        char_lines = _char_lines(font, ch)
-        cw = max((len(line) for line in char_lines), default=1)
-        w += cw
-        if i < len(text) - 1:
-            w += letter_space
-    return (max(0, w), lines_count)
+class ASCIIFont(FrameBuffer):
+    """ASCII font renderable with selection. Aligns with OpenTUI ASCIIFontRenderable."""
 
-
-def character_bounds(text: str, index: int, font: dict | None = None) -> tuple[int, int, int, int] | None:
-    """返回字符 index 在艺术字布局中的 (x_start, y_start, x_end, y_end)；越界返回 None。"""
-    if index < 0 or index >= len(text):
-        return None
-    font = font or TINY_FONT
-    w_before, _ = measure_text(text[:index], font)
-    w_after, h = measure_text(text[: index + 1], font)
-    return (w_before, 0, w_after, h)
-
-
-def render_font_to_buffer(
-    buffer: OptimizedBuffer,
-    text: str,
-    x: int,
-    y: int,
-    font: dict | None = None,
-    fg: ColorTuple | None = None,
-    bg: ColorTuple | None = None,
-) -> tuple[int, int]:
-    """将艺术字绘制到 buffer 的 (x,y)，返回 (width, height)。"""
-    font = font or TINY_FONT
-    fg = fg or (255, 255, 255, 255)
-    bg = bg or (0, 0, 0, 0)
-    lines_count = font["lines"]
-    letter_space = font.get("letterspace_size", 1)
-    buf_h, buf_w = buffer.height, buffer.width
-    cur_x = x
-    for i, ch in enumerate(text):
-        char_lines = _char_lines(font, ch)
-        cw = max(len(line) for line in char_lines) if char_lines else 1
-        for line_idx, line in enumerate(char_lines):
-            ry = y + line_idx
-            if ry < 0 or ry >= buf_h:
-                continue
-            for dx, char in enumerate(line):
-                rx = cur_x + dx
-                if 0 <= rx < buf_w and char != " ":
-                    buffer.set_cell(rx, ry, Cell(char=char, fg=fg, bg=bg))
-        cur_x += cw + letter_space
-    return (max(0, cur_x - x - letter_space), lines_count)
-
-
-def load_font_from_json(path: str | Path) -> dict:
-    """从 JSON 文件加载字体（与 OpenTUI tiny/block 等格式兼容）。"""
-    with open(path, encoding="utf-8") as f:
-        data = json.load(f)
-    return {
-        "name": data.get("name", "custom"),
-        "lines": data["lines"],
-        "letterspace_size": data.get("letterspace_size", 1),
-        "chars": data["chars"],
+    _default_options = {
+        "text": "",
+        "font": "tiny",
+        "color": "#FFFFFF",
+        "backgroundColor": "transparent",
+        "selectionBg": None,
+        "selectionFg": None,
+        "selectable": True,
     }
 
-
-class ASCIIFont(Renderable):
-    """艺术字组件：用内置或可选 JSON 字体渲染文本。可选 selectable、选区高亮（selectionBg/selectionFg）。"""
-
-    _fonts: dict[str, dict] = {
-        "tiny": TINY_FONT,
-        "block": BLOCK_FONT,
-        "slick": SLICK_FONT,
-        "shade": SHADE_FONT,
-    }
-
-    def __init__(self, ctx: Any, options: dict | None = None) -> None:
+    def __init__(self, ctx: Any, options: dict[str, Any] | None = None) -> None:
         options = options or {}
-        super().__init__(ctx, options)
-        self._text = options.get("text", "")
-        self._font_name = options.get("font", "tiny")
-        self._font_dict = options.get("font_dict")  # 可选：直接传字体 dict
-        self._fg = parse_color(options.get("fg", "#ffffff"))
-        self._bg = parse_color(options.get("bg", "transparent"))
-        self._buffer: OptimizedBuffer | None = None
-        self._buf_w = 0
-        self._buf_h = 0
-        self._selectable = options.get("selectable", False)
-        self._selection_bg = parse_color(options.get("selection_bg", options.get("selectionBg", "#4444aa")))
-        self._selection_fg = parse_color(options.get("selection_fg", options.get("selectionFg", "#ffffff")))
-        self._cursor_pos = 0
-        self._selection_anchor: int | None = None
-        self._update_size()
-
-    def _get_font(self) -> dict:
-        if self._font_dict is not None:
-            return self._font_dict
-        return self._fonts.get(self._font_name, TINY_FONT)
-
-    def _update_size(self) -> None:
-        w, h = measure_text(self._text, self._get_font())
-        self.layout_node.set_width(max(1, w))
-        self.layout_node.set_height(max(1, h))
-
-    def set_text(self, text: str) -> None:
+        defs = self._default_options
+        font = options.get("font", defs["font"])
+        text = options.get("text", defs["text"])
+        measurements = measure_text(text=text, font=font)
+        w = getattr(measurements, "width", measurements[0] if hasattr(measurements, "__getitem__") else 1) or 1
+        h = getattr(measurements, "height", measurements[1] if hasattr(measurements, "__getitem__") else 1) or 1
+        opts = {
+            **options,
+            "width": w,
+            "height": h,
+            "flex_shrink": 0,
+            "respect_alpha": True,
+        }
+        super().__init__(ctx, opts)
+        self.width = w
+        self.height = h
         self._text = text
-        self._update_size()
-        self._buffer = None
+        self._font = font
+        self._color = options.get("color", defs["color"])
+        self._backgroundColor = options.get("backgroundColor", options.get("background_color", defs["backgroundColor"]))
+        self._selection_bg = (
+            parse_color_to_tuple(options["selectionBg"]) if options.get("selectionBg") else None
+        )
+        self._selection_fg = (
+            parse_color_to_tuple(options["selectionFg"]) if options.get("selectionFg") else None
+        )
+        self.selectable = options.get("selectable", defs["selectable"])
+        self._last_local_selection: LocalSelectionBounds | None = None
+        self.selection_helper = ASCIIFontSelectionHelper(
+            lambda: self._text,
+            lambda: self._font,
+        )
+        self._render_font_to_buffer()
+
+    @property
+    def text(self) -> str:
+        return self._text
+
+    @text.setter
+    def text(self, value: str) -> None:
+        self._text = value
+        self._update_dimensions()
+        if self._last_local_selection:
+            self.selection_helper.on_local_selection_changed(
+                self._last_local_selection, self.width, self.height
+            )
+        self._render_font_to_buffer()
         self.request_render()
 
-    def set_font(self, font_name: str) -> None:
-        self._font_name = font_name
-        self._font_dict = None
-        self._update_size()
-        self._buffer = None
+    @property
+    def font(self) -> str:
+        return self._font
+
+    @font.setter
+    def font(self, value: str) -> None:
+        self._font = value
+        self._update_dimensions()
+        if self._last_local_selection:
+            self.selection_helper.on_local_selection_changed(
+                self._last_local_selection, self.width, self.height
+            )
+        self._render_font_to_buffer()
         self.request_render()
 
-    def _get_selection_range(self) -> tuple[int, int] | None:
-        if self._selection_anchor is None:
-            return None
-        a, b = self._selection_anchor, self._cursor_pos
-        if a > b:
-            a, b = b, a
-        return (a, b)
+    @property
+    def color(self) -> Any:
+        return self._color
 
-    def focus(self) -> None:
-        super().focus()
-        if self._selectable and hasattr(self.ctx, "renderer") and self.ctx.renderer:
-            self.ctx.renderer.events.on("keypress", self._on_keypress)
+    @color.setter
+    def color(self, value: Any) -> None:
+        self._color = value
+        self._render_font_to_buffer()
+        self.request_render()
 
-    def blur(self) -> None:
-        if hasattr(self.ctx, "renderer") and self.ctx.renderer:
-            self.ctx.renderer.events.remove_listener("keypress", self._on_keypress)
-        super().blur()
+    @property
+    def backgroundColor(self) -> Any:
+        return self._backgroundColor
 
-    def _on_keypress(self, key: dict) -> None:
-        if not self.focused or not self._selectable:
-            return
-        name = key.get("name") or key.get("char")
-        shift = key.get("shift", False)
-        n = len(self._text)
-        if name == "left":
-            if self._cursor_pos > 0:
-                if shift and self._selection_anchor is None:
-                    self._selection_anchor = self._cursor_pos
-                elif not shift:
-                    self._selection_anchor = None
-                self._cursor_pos -= 1
-                self.request_render()
-            return
-        if name == "right":
-            if self._cursor_pos < n:
-                if shift and self._selection_anchor is None:
-                    self._selection_anchor = self._cursor_pos
-                elif not shift:
-                    self._selection_anchor = None
-                self._cursor_pos += 1
-                self.request_render()
-            return
-        if name == "home":
-            self._cursor_pos = 0
-            if not shift:
-                self._selection_anchor = None
-            self.request_render()
-            return
-        if name == "end":
-            self._cursor_pos = n
-            if not shift:
-                self._selection_anchor = None
-            self.request_render()
-            return
+    @backgroundColor.setter
+    def backgroundColor(self, value: Any) -> None:
+        self._backgroundColor = value
+        self._render_font_to_buffer()
+        self.request_render()
 
-    def _ensure_buffer(self) -> None:
-        font = self._get_font()
-        w, h = measure_text(self._text, font)
-        w, h = max(1, w), max(1, h)
-        if self._buffer is None or self._buf_w != w or self._buf_h != h:
-            self._buffer = OptimizedBuffer(w, h, use_native=False)
-            self._buf_w, self._buf_h = w, h
-        self._buffer.clear()
-        render_font_to_buffer(self._buffer, self._text, 0, 0, font, self._fg, self._bg)
+    @property
+    def background_color(self) -> Any:
+        """Snake_case alias for backgroundColor."""
+        return self._backgroundColor
 
-    def render_self(self, buffer: OptimizedBuffer) -> None:
-        if not self._text:
-            return
-        self._ensure_buffer()
-        if self._buffer is None:
-            return
-        for dy in range(self._buffer.height):
-            for dx in range(self._buffer.width):
-                cell = self._buffer.get_cell(dx, dy)
-                if cell is not None:
-                    buffer.set_cell(self.x + dx, self.y + dy, cell)
-        if self._selectable and self.focused:
-            sel = self._get_selection_range()
-            if sel is not None:
-                font = self._get_font()
-                for idx in range(sel[0], sel[1]):
-                    bounds = character_bounds(self._text, idx, font)
-                    if bounds is None:
-                        continue
-                    x0, y0, x1, y1 = bounds
-                    for by in range(y0, y1):
-                        for bx in range(x0, x1):
-                            if 0 <= bx < self._buffer.width and 0 <= by < self._buffer.height:
-                                cell = self._buffer.get_cell(bx, by)
-                                if cell is not None:
-                                    buffer.set_cell(
-                                        self.x + bx,
-                                        self.y + by,
-                                        Cell(char=cell.char, fg=self._selection_fg, bg=self._selection_bg),
-                                    )
+    @background_color.setter
+    def background_color(self, value: Any) -> None:
+        self._backgroundColor = value
+        self._render_font_to_buffer()
+        self.request_render()
+
+    @property
+    def selection_bg(self) -> Any:
+        return self._selection_bg
+
+    @selection_bg.setter
+    def selection_bg(self, value: Any) -> None:
+        self._selection_bg = parse_color_to_tuple(value) if value is not None else None
+        self._render_font_to_buffer()
+        self.request_render()
+
+    def _get_font(self) -> str:
+        """Return current font (for tests / OpenTUI alignment)."""
+        return self._font
 
     @classmethod
-    def register_font(cls, name: str, font_dict: dict) -> None:
-        """注册命名字体，供 font= 使用。"""
-        cls._fonts[name] = font_dict
+    def register_font(cls, name: str, font_def: dict[str, Any]) -> None:
+        """Register a custom font (delegates to lib.ascii_font.register_font)."""
+        register_font(name, font_def)
+
+    def _update_dimensions(self) -> None:
+        m = measure_text(text=self._text, font=self._font)
+        self.width = getattr(m, "width", m[0] if hasattr(m, "__getitem__") else 1)
+        self.height = getattr(m, "height", m[1] if hasattr(m, "__getitem__") else 1)
+        self.layout_node.set_width(self.width)
+        self.layout_node.set_height(self.height)
+        self.on_resize(self.width, self.height)
+
+    def should_start_selection(self, x: int, y: int) -> bool:
+        local_x = x - self.x
+        local_y = y - self.y
+        return self.selection_helper.should_start_selection(
+            local_x, local_y, self.width, self.height
+        )
+
+    def on_selection_changed(self, selection: Any | None) -> bool:
+        if isinstance(selection, dict):
+            local_selection = LocalSelectionBounds(
+                anchor_x=selection.get("anchorX", selection.get("anchor_x", 0)),
+                anchor_y=selection.get("anchorY", selection.get("anchor_y", 0)),
+                focus_x=selection.get("focusX", selection.get("focus_x", 0)),
+                focus_y=selection.get("focusY", selection.get("focus_y", 0)),
+                is_active=selection.get("isActive", selection.get("is_active", True)),
+            )
+        else:
+            local_selection = convert_global_to_local_selection(selection, self.x, self.y)
+        self._last_local_selection = local_selection
+        changed = self.selection_helper.on_local_selection_changed(
+            local_selection, self.width, self.height
+        )
+        if changed:
+            self._render_font_to_buffer()
+            self.request_render()
+        return changed
+
+    def get_selected_text(self) -> str:
+        sel = self.selection_helper.get_selection()
+        if not sel:
+            return ""
+        return self._text[sel[0] : sel[1]]
+
+    def has_selection(self) -> bool:
+        return self.selection_helper.has_selection()
+
+    def on_resize(self, width: int, height: int) -> None:
+        super().on_resize(width, height)
+        self._render_font_to_buffer()
+
+    def _render_font_to_buffer(self) -> None:
+        if getattr(self, "is_destroyed", False):
+            return
+        self._ensure_buffer()
+        buf = self.get_buffer()
+        if buf is None:
+            return
+        from pytui.core.buffer import Cell
+        bg_tuple = parse_color_to_tuple(self._backgroundColor)
+        buf.clear()
+        for y in range(buf.height):
+            for x in range(buf.width):
+                buf.set_cell(x, y, Cell(bg=bg_tuple))
+        render_font_to_frame_buffer(
+            buf,
+            self._text,
+            x=0,
+            y=0,
+            color=self._color,
+            backgroundColor=self._backgroundColor,
+            font=self._font,
+        )
+        sel = self.selection_helper.get_selection()
+        if sel and (self._selection_bg or self._selection_fg):
+            self._render_selection_highlight(sel)
+
+    def _render_selection_highlight(self, selection: tuple[int, int]) -> None:
+        if not self._selection_bg and not self._selection_fg:
+            return
+        start, end = selection
+        selected_text = self._text[start:end]
+        if not selected_text:
+            return
+        positions = get_character_positions(self._text, self._font)
+        start_x = positions[start] if start < len(positions) else 0
+        end_x = (
+            positions[end]
+            if end < len(positions)
+            else measure_text(text=self._text, font=self._font).get("width", 0)
+        )
+        buf = self.get_buffer()
+        if buf is None:
+            return
+        from pytui.core.buffer import Cell
+        if self._selection_bg:
+            buf.fill_rect(
+                start_x, 0, end_x - start_x, self.height,
+                Cell(bg=self._selection_bg),
+            )
+        if self._selection_fg or self._selection_bg:
+            fg = self._selection_fg if self._selection_fg else parse_color_to_tuple(self._color)
+            bg = self._selection_bg if self._selection_bg else parse_color_to_tuple(self._backgroundColor)
+            render_font_to_frame_buffer(
+                buf,
+                selected_text,
+                x=start_x,
+                y=0,
+                color=fg,
+                backgroundColor=bg,
+                font=self._font,
+            )
+
+
+# Class-level font registry for tests (grid/huge/pallet)
+ASCIIFont._fonts = _fonts  # type: ignore[attr-defined]

@@ -1,4 +1,5 @@
-# tests/unit/core/test_renderable.py
+# tests/unit/core/test_renderable.py - Aligns with OpenTUI Renderable tests
+# add/remove, requestRender, calculateLayout, render/renderSelf, findById, focus/blur, getChildren.
 
 import pytest
 
@@ -103,3 +104,18 @@ class TestRenderable:
         assert r.focused
         r.blur()
         assert not r.focused
+
+    def test_get_children_returns_copy(self, mock_context):
+        from pytui.core.renderable import Renderable
+
+        class Dummy(Renderable):
+            def render_self(self, buffer):
+                pass
+
+        root = Dummy(mock_context, {"id": "root"})
+        child = Dummy(mock_context, {"id": "c1"})
+        root.add(child)
+        children = root.get_children()
+        assert len(children) == 1
+        assert children[0] is child
+        assert children is not root.children

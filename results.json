@@ -1,0 +1,59 @@
+{
+  "date": "2026-01-31T08:40:20",
+  "scenarios": [
+    {
+      "name": "Single Fast Cube",
+      "frameCount": 228,
+      "fps": 53,
+      "averageFrameTime": 4.584939856278269,
+      "minFrameTime": 2.240896224975586,
+      "maxFrameTime": 12.073993682861328,
+      "stdDev": 1.655776304872991,
+      "memoryStats": {
+        "averageHeapUsedMB": 35910.4,
+        "minHeapUsedMB": 35584.0,
+        "maxHeapUsedMB": 36400.0
+      }
+    },
+    {
+      "name": "Multiple Moving Cubes",
+      "frameCount": 262,
+      "fps": 53,
+      "averageFrameTime": 6.399869918823242,
+      "minFrameTime": 4.5490264892578125,
+      "maxFrameTime": 12.212991714477539,
+      "stdDev": 0.7973672333117025,
+      "memoryStats": {
+        "averageHeapUsedMB": 36400.0,
+        "minHeapUsedMB": 36400.0,
+        "maxHeapUsedMB": 36400.0
+      }
+    },
+    {
+      "name": "Textured Cubes with Emissive Maps",
+      "frameCount": 263,
+      "fps": 53,
+      "averageFrameTime": 6.016386779088938,
+      "minFrameTime": 4.2171478271484375,
+      "maxFrameTime": 11.363744735717773,
+      "stdDev": 0.7899474392697595,
+      "memoryStats": {
+        "averageHeapUsedMB": 36444.8,
+        "minHeapUsedMB": 36432.0,
+        "maxHeapUsedMB": 36464.0
+      }
+    }
+  ],
+  "comparison": [
+    {
+      "name": "Multiple Moving Cubes",
+      "ratio": 1.3958459913186747,
+      "percentDifference": 39.58459913186747
+    },
+    {
+      "name": "Textured Cubes with Emissive Maps",
+      "ratio": 1.312206259554431,
+      "percentDifference": 31.220625955443104
+    }
+  ]
+}
