@@ -18,7 +18,7 @@ class MockKeys:
 
     def feed(self, data: str | bytes) -> None:
         """注入按键序列（如 'a'、'\\x1b[C' 表示右箭头）。"""
-        self._renderer.keyboard.feed(data)
+        self._renderer.feed_input(data)
 
 
 def create_mock_keys(renderer: Renderer) -> MockKeys:

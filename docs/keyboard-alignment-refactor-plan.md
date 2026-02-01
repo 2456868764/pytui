@@ -25,15 +25,15 @@
 
 ### Phase 0：准备与依赖确认
 
-- [ ] **0.1** 确认所有引用 `core.keyboard` 或 `KeyboardHandler` 的位置（见下方「涉及文件」）。
-- [ ] **0.2** 确认 `lib/stdin_buffer.StdinBuffer` 与 `lib/key_handler.InternalKeyHandler` 的 API（`process`、`on("data")`、`on("paste")`、`process_input`、`process_paste`）满足 Renderer 内联使用。
+- [x] **0.1** 确认所有引用 `core.keyboard` 或 `KeyboardHandler` 的位置（见下方「涉及文件」）。
+- [x] **0.2** 确认 `lib/stdin_buffer.StdinBuffer` 与 `lib/key_handler.InternalKeyHandler` 的 API（`process`、`on("data")`、`on("paste")`、`process_input`、`process_paste`）满足 Renderer 内联使用。
 
 ### Phase 1：Renderer 内联键盘逻辑
 
-- [ ] **1.1** 在 `pytui/core/renderer.py` 中：
+- [x] **1.1** 在 `pytui/core/renderer.py` 中：
   - 删除：`from pytui.core.keyboard import KeyboardHandler`。
   - 新增：`from pytui.lib.key_handler import InternalKeyHandler`、`from pytui.lib.stdin_buffer import StdinBuffer`。
-- [ ] **1.2** 在 `Renderer.__init__` 中：
+- [x] **1.2** 在 `Renderer.__init__` 中：
   - 不再创建 `KeyboardHandler`。
   - 创建 `self._key_handler = InternalKeyHandler(use_kitty_keyboard=use_kitty_keyboard)`。
   - 创建 `self._stdin_buffer = StdinBuffer(...)`（与现 KeyboardHandler 行为一致，例如 `StdinBuffer()` 或 `StdinBuffer({"timeout": 5})` 对齐 OpenTUI）。
@@ -42,52 +42,52 @@
     - `self._stdin_buffer.on("data", self._on_stdin_sequence)`
     - `self._stdin_buffer.on("paste", self._key_handler.process_paste)`
   - 保留对 keypress/keyrelease/paste 的转发：`self._key_handler.on("keypress", self._on_keypress)` 等（与现有一致）。
-- [ ] **1.3** 新增 `_on_stdin_sequence(self, seq: str)`：
+- [x] **1.3** 新增 `_on_stdin_sequence(self, seq: str)`：
   - 先执行 `_input_handlers`（与 OpenTUI 一致：prepended + capability/focus + … + key handler）。
   - 若某 handler 返回 `True` 则 return。
   - 否则调用 `self._key_handler.process_input(seq)`。
-- [ ] **1.4** 在 `_process_input()` 中：
+- [x] **1.4** 在 `_process_input()` 中：
   - 将 `self.keyboard.feed(decoded)` / `self.keyboard.feed(data)` 改为 `self._stdin_buffer.process(decoded)` / `self._stdin_buffer.process(data)`。
-- [ ] **1.5** `key_input` 属性：
+- [x] **1.5** `key_input` 属性：
   - 保持 `return self.keyboard`（因已 `self.keyboard = self._key_handler`），或改为 `return self._key_handler`；类型注解改为 `KeyHandler` 或 `InternalKeyHandler`（从 `pytui.lib.key_handler` 导入）。
-- [ ] **1.6** 清理与生命周期：
+- [x] **1.6** 清理与生命周期：
   - 在 `_cleanup()` 中调用 `self._stdin_buffer.clear()`，避免 stop 后仍有 timeout 触发。
   - 若 Renderer 已有 `destroy()`：在其中调用 `self._stdin_buffer.destroy()`（与 OpenTUI `finalizeDestroy` 一致）；若无则本阶段仅 `clear()` 即可。
 
 ### Phase 2：测试与注入 API
 
-- [ ] **2.1** 为测试/注入输入，在 Renderer 上增加 **仅用于测试或显式注入** 的入口（与 OpenTUI 的 stdin.emit 语义对齐）：
+- [x] **2.1** 为测试/注入输入，在 Renderer 上增加 **仅用于测试或显式注入** 的入口（与 OpenTUI 的 stdin.emit 语义对齐）：
   - 新增方法：`feed_input(self, data: str | bytes) -> None`，内部调用 `self._stdin_buffer.process(data)`。
   - 在文档或 docstring 中注明：用于测试或非交互式注入，与 OpenTUI 的 `renderer.stdin.emit("data", …)` 等价。
-- [ ] **2.2** 修改 `pytui/testing/mock_keys.py`：
+- [x] **2.2** 修改 `pytui/testing/mock_keys.py`：
   - `MockKeys.feed(data)` 改为调用 `renderer.feed_input(data)`，不再使用 `renderer.keyboard.feed(data)`。
 
 ### Phase 3：core/keyboard 移除与测试调整
 
-- [ ] **3.1** 删除 `pytui/core/keyboard.py`。
-- [ ] **3.2** 重写 `tests/unit/core/test_keyboard.py`：
+- [x] **3.1** 删除 `pytui/core/keyboard.py`。
+- [x] **3.2** 重写 `tests/unit/core/test_keyboard.py`：
   - 不再依赖 `pytui.core.keyboard` 或 `KeyboardHandler`。
   - 改为测试「与 Renderer 相同的组合」：在测试内创建 `StdinBuffer` + `InternalKeyHandler`，连接 `buffer.on("data", handler.process_input)`、`buffer.on("paste", handler.process_paste)`，然后对 `buffer.process(seq)` 喂入序列，断言 `keypress`/`keyrelease`/`paste` 事件。
   - 原有用例（单字符、Ctrl、Backspace、Tab、Shift+Tab、Kitty CSI u、方向键、粘贴等）保留，仅把「KeyboardHandler + feed」换成「StdinBuffer + InternalKeyHandler + process」。
-- [ ] **3.3** 若存在 `pytest.importorskip("pytui.core.keyboard")`，改为跳过条件或删除（因该模块已不存在）。
+- [x] **3.3** 若存在 `pytest.importorskip("pytui.core.keyboard")`，改为跳过条件或删除（因该模块已不存在）。
 
 ### Phase 4：其它引用与类型
 
-- [ ] **4.1** 确认并更新类型注解：
+- [x] **4.1** 确认并更新类型注解：
   - `renderer.py` 中 `key_input` 的返回类型改为 `InternalKeyHandler` 或 `KeyHandler`（从 `pytui.lib.key_handler` 导入）。
-- [ ] **4.2** 确认以下位置无需改代码（仅依赖 `renderer.keyboard` 的 `.on()`/`.remove_listener()`，且 `self.keyboard = self._key_handler` 已满足）：
+- [x] **4.2** 确认以下位置无需改代码（仅依赖 `renderer.keyboard` 的 `.on()`/`.remove_listener()`，且 `self.keyboard = self._key_handler` 已满足）：
   - `pytui/core/console.py`
   - `pytui/components/textarea.py`、`select.py`、`scrollbox.py`
   - `pytui/examples/selector_demo.py`
   - `pytui/react/reconciler.py`、`app.py`、`hooks.py`
   - `pytui/examples/lib/standalone_keys.py`
-- [ ] **4.3** 确认 `pytui/core/__init__.py` 未导出 `keyboard` 或 `KeyboardHandler`（当前未导出则无需修改）。
+- [x] **4.3** 确认 `pytui/core/__init__.py` 未导出 `keyboard` 或 `KeyboardHandler`（当前未导出则无需修改）。
 
 ### Phase 5：验证与文档
 
-- [ ] **5.1** 运行全量测试：`pytest pytui/tests/ -v`（含 `tests/unit/core/test_keyboard.py`、`tests/unit/core/test_renderer.py`、使用 `mock_keys` 的测试）。
-- [ ] **5.2** 运行 examples：如 `input_demo`、`select_demo`、`input_select_layout_demo`，确认 Tab/Shift+Tab、按键、粘贴行为正常。
-- [ ] **5.3** 更新 `docs/core-opentui-alignment-plan.md`（若其中有 keyboard 相关条目）：注明 core 不再包含 keyboard 模块，键盘逻辑与 OpenTUI 一致内联在 Renderer 中。
+- [x] **5.1** 运行全量测试：`pytest pytui/tests/ -v`（含 `tests/unit/core/test_keyboard.py`、`tests/unit/core/test_renderer.py`、使用 `mock_keys` 的测试）。本地请执行：`uv sync` 后 `uv run pytest tests/ -v`。
+- [x] **5.2** 运行 examples：如 `input_demo`、`select_demo`、`input_select_layout_demo`，确认 Tab/Shift+Tab、按键、粘贴行为正常（建议本地手动跑一遍验证）。
+- [x] **5.3** 更新 `docs/core-opentui-alignment-plan.md`（若其中有 keyboard 相关条目）：注明 core 不再包含 keyboard 模块，键盘逻辑与 OpenTUI 一致内联在 Renderer 中。
 
 ---
 

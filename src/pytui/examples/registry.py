@@ -32,13 +32,19 @@ except ImportError:
     _select_demo_run = None  # type: ignore[misc, assignment]
     _select_demo_destroy = None  # type: ignore[misc, assignment]
 
+try:
+    from pytui.examples.tab_select_demo import destroy as _tab_select_demo_destroy, run as _tab_select_demo_run
+except ImportError:
+    _tab_select_demo_run = None  # type: ignore[misc, assignment]
+    _tab_select_demo_destroy = None  # type: ignore[misc, assignment]
+
 EXAMPLES: dict[str, ExampleEntry] = {
     # Phase 1 - Layout & basic controls
     "simple-layout": (_simple_layout_run, _simple_layout_destroy, "Flex layout: horizontal/vertical/centered/three-column"),
     "input-demo": (_input_demo_run, _input_demo_destroy, "Multiple inputs, Tab navigation, validation"),
     "input-select-layout": (_input_select_run, _input_select_destroy, "Input + Select layout together"),
     "select-demo": (_select_demo_run, _select_demo_destroy, "Select list with keyboard nav and descriptions"),
-    "tab-select-demo": (None, None, "Tab selection with arrows and options"),
+    "tab-select-demo": (_tab_select_demo_run, _tab_select_demo_destroy, "Tab selection with arrows and descriptions"),
     "slider-demo": (None, None, "Horizontal/vertical sliders with value display"),
     "styled-text-demo": (None, None, "Styled text with colors and formatting"),
     # Phase 2 - Text & highlighting

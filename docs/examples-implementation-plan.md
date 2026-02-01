@@ -185,7 +185,8 @@ index/选择器 (Box + Select + Textarea filter)
 - [x] **阶段 1.3**：`input_select_layout_demo.py`（Input + 双 Select 同屏，Tab 切换焦点）
 - [x] **阶段 1.4**：`select_demo.py`（Select 列表、F/D/S/W 切换描述/滚动/换行、状态区）
 - [x] **阶段 5**：注册表（5.1）、主入口（5.2）、README（5.3）；本计划文档（5.4）
-- [ ] 阶段 1.5–1.7、2、3、4：其余 demo 待按步骤实现
+- [x] **阶段 1.5**：`tab_select_demo.py`（TabSelect 标签栏、Left/Right 切换、D/U/W 切换描述/下划线/换行、状态区）
+- [ ] 阶段 1.6–1.7、2、3、4：其余 demo 待按步骤实现
 
 **运行**：`python -m pytui.examples`（选择器）或 `python -m pytui.examples <name>`（如 `simple-layout`、`input-demo`、`input-select-layout`、`select-demo`）。
 

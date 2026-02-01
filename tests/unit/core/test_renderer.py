@@ -49,7 +49,7 @@ class TestRenderer:
             sys.stdout = old
 
     def test_process_input_decodes_multibyte_utf8(self):
-        """_process_input 逐字节读并用增量 UTF-8 解码，单字多字节（如 中）能正确喂给 keyboard。"""
+        """_process_input 逐字节读并用增量 UTF-8 解码，单字多字节（如 中）能正确喂给 _stdin_buffer。"""
         from pytui.core.renderer import Renderer
 
         r = Renderer(width=4, height=4, target_fps=0)
@@ -67,10 +67,10 @@ class TestRenderer:
                 ([mock_buffer], [], []),
                 ([], [], []),
             ],
-        ), patch.object(r.keyboard, "feed") as feed_mock:
+        ), patch.object(r._stdin_buffer, "process") as process_mock:
             r._process_input()
 
-        feed_mock.assert_called_once_with("\u4e2d")
+        process_mock.assert_called_once_with("\u4e2d")
 
     def test_process_input_decodes_multiple_chinese_chars(self):
         """_process_input 逐字节读时，多个中文字符能依次正确解码并喂给 keyboard。"""
@@ -96,12 +96,12 @@ class TestRenderer:
                 ([mock_buffer], [], []),
                 ([], [], []),
             ],
-        ), patch.object(r.keyboard, "feed") as feed_mock:
+        ), patch.object(r._stdin_buffer, "process") as process_mock:
             r._process_input()
 
-        assert feed_mock.call_count == 2
-        feed_mock.assert_any_call("\u4e2d")
-        feed_mock.assert_any_call("\u6587")
+        assert process_mock.call_count == 2
+        process_mock.assert_any_call("\u4e2d")
+        process_mock.assert_any_call("\u6587")
 
     def test_process_input_decodes_ascii(self):
         """_process_input 逐字节读时，英文等 ASCII 能正确解码并喂给 keyboard。"""
@@ -116,9 +116,9 @@ class TestRenderer:
         with patch("pytui.core.renderer.sys.stdin", mock_stdin), patch(
             "pytui.core.renderer.select.select",
             side_effect=[([mock_buffer], [], []), ([mock_buffer], [], []), ([], [], [])],
-        ), patch.object(r.keyboard, "feed") as feed_mock:
+        ), patch.object(r._stdin_buffer, "process") as process_mock:
             r._process_input()
 
-        assert feed_mock.call_count == 2
-        feed_mock.assert_any_call("a")
-        feed_mock.assert_any_call("b")
+        assert process_mock.call_count == 2
+        process_mock.assert_any_call("a")
+        process_mock.assert_any_call("b")

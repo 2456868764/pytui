@@ -11,8 +11,9 @@ from typing import Any, Callable
 
 from pytui.core.buffer import OptimizedBuffer
 from pytui.core.events import EventBus
-from pytui.core.keyboard import KeyboardHandler
 from pytui.core.renderable import Renderable
+from pytui.lib.key_handler import InternalKeyHandler
+from pytui.lib.stdin_buffer import StdinBuffer
 from pytui.core.terminal import Terminal
 from pytui.core.types import CursorStyle, DebugOverlayCorner
 
@@ -159,10 +160,14 @@ class Renderer:
             self.back_buffer = OptimizedBuffer(self.width, self.height)
         self.context = RenderContext(renderer=self)
         self.root = RootRenderable(self.context, {"id": "root"})
-        self.keyboard = KeyboardHandler(use_kitty_keyboard=use_kitty_keyboard, input_handlers_getter=lambda: self._input_handlers)
-        self.keyboard.on("keypress", self._on_keypress)
-        self.keyboard.on("keyrelease", self._on_keyrelease)
-        self.keyboard.on("paste", self._on_paste)
+        self._key_handler = InternalKeyHandler(use_kitty_keyboard=use_kitty_keyboard)
+        self._stdin_buffer = StdinBuffer()
+        self._stdin_buffer.on("data", self._on_stdin_sequence)
+        self._stdin_buffer.on("paste", self._key_handler.process_paste)
+        self.keyboard = self._key_handler
+        self._key_handler.on("keypress", self._on_keypress)
+        self._key_handler.on("keyrelease", self._on_keyrelease)
+        self._key_handler.on("paste", self._on_paste)
         self.prepend_input_handler(self._debug_capture_input)
         self.events = EventBus()
         self.running = False
@@ -338,9 +343,9 @@ class Renderer:
                 if decoded:
                     if os.environ.get("PYTUI_DEBUG"):
                         print(f"[pytui:renderer] feed decoded: {decoded!r}", file=sys.stderr, flush=True)
-                    self.keyboard.feed(decoded)
+                    self._stdin_buffer.process(decoded)
             else:
-                self.keyboard.feed(data)
+                self._stdin_buffer.process(data)
             max_reads -= 1
             try:
                 ready = select.select([stream], [], [], 0)[0]
@@ -368,6 +373,13 @@ class Renderer:
                 self.back_buffer = OptimizedBuffer(self.width, self.height)
             self.events.emit("resize", self.width, self.height)
             self.schedule_render()
+
+    def _on_stdin_sequence(self, seq: str) -> None:
+        """Run input_handlers then key_handler.process_input; aligns OpenTUI _stdinBuffer.on('data')."""
+        for h in self._input_handlers:
+            if h(seq):
+                return
+        self._key_handler.process_input(seq)
 
     def _on_keypress(self, key: dict) -> None:
         self.events.emit("keypress", key)
@@ -461,9 +473,9 @@ class Renderer:
             self.terminal.disable_mouse()
 
     @property
-    def key_input(self) -> KeyboardHandler:
+    def key_input(self) -> InternalKeyHandler:
         """Align OpenTUI keyInput getter."""
-        return self.keyboard
+        return self._key_handler
 
     @property
     def use_console(self) -> bool:
@@ -513,6 +525,11 @@ class Renderer:
 
     def remove_input_handler(self, handler: Callable[[str], bool]) -> None:
         self._input_handlers = [h for h in self._input_handlers if h != handler]
+
+    def feed_input(self, data: str | bytes) -> None:
+        """Feed raw input into the keyboard pipeline; for tests or non-interactive injection.
+        Aligns OpenTUI renderer.stdin.emit('data', …)."""
+        self._stdin_buffer.process(data)
 
     # --- Frame callbacks (align OpenTUI removeFrameCallback, clearFrameCallbacks) ---
     def remove_frame_callback(self, callback: Callable) -> None:
@@ -705,6 +722,8 @@ class Renderer:
         self.events.emit("memory:snapshot", {"heapUsed": heap_used, "heapTotal": 0, "arrayBuffers": 0})
 
     def _cleanup(self) -> None:
+        if getattr(self, "_stdin_buffer", None) is not None:
+            self._stdin_buffer.clear()
         if self._input_stream is not None and self._input_saved_attrs is not None:
             try:
                 import termios

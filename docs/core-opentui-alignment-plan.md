@@ -70,7 +70,7 @@
 |------------|------|----------|------|
 | ~~`core/colors.py`~~ | 颜色常量 | 对应 lib/RGBA 使用方式，删除避免重复 | 已删除，统一使用 `from pytui.lib import parse_color, parse_color_to_tuple` |
 | `core/events.py` | EventBus | 对应 OpenTUI events/EventEmitter | 已对齐（EventBus = EventEmitter，事件名一致） |
-| `core/keyboard.py` | 键盘相关 | 对应 lib/KeyHandler、parse.keypress 使用 | 已对齐（KeyboardHandler 组合 StdinBuffer + KeyHandler，feed → keypress/keyrelease/paste） |
+| ~~`core/keyboard.py`~~ | 键盘相关 | 对应 lib/KeyHandler、parse.keypress 使用 | 已删除；逻辑内联至 renderer.py（StdinBuffer + InternalKeyHandler，feed_input → keypress/keyrelease/paste），与 OpenTUI renderer.ts 一致 |
 | `core/layout.py` | 布局 | 对应 yoga-layout / renderable 布局 | 已对齐（Yoga 或 _StubLayoutNode，flexbox API 与 OpenTUI 一致） |
 | `core/mouse.py` | 鼠标相关 | 对应 lib/parse.mouse 使用 | 已对齐（MouseHandler 使用 lib.parse_mouse.MouseParser，emit 'mouse'） |
 | ~~`core/rgba.py`~~ | 若存在 | 与 lib/rgba 统一，删除避免重复 | 已删除，统一使用 `from pytui.lib import RGBA, hex_to_rgb, rgb_to_hex, parse_color` |
@@ -132,7 +132,7 @@
 - [x] renderables/ → components/（Box, FrameBuffer, Text, Textarea, TextNode, EditBufferRenderable, ScrollBox, ScrollBar, Input, Select, Slider, TabSelect, Diff, Code, LineNumberRenderable, ASCIIFont 已对齐）
 - [x] Markdown (components/markdown.py) 及 tests/unit/components/test_markdown.py
 - [x] TextBufferRenderable (components/text_buffer_renderable.py) 及 tests/unit/components/test_text_buffer_renderable.py
-- [x] **三、PyTUI core 独有模块**：colors/rgba/terminal_palette 已删除（统一用 pytui.lib）；events/keyboard/layout/mouse/terminal 已对应 OpenTUI
+- [x] **三、PyTUI core 独有模块**：colors/rgba/terminal_palette 已删除（统一用 pytui.lib）；keyboard 已删除（逻辑内联至 renderer）；events/layout/mouse/terminal 已对应 OpenTUI
 
 ## 七、运行测试（conda pytui 环境）
 
