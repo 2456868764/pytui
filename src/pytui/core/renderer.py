@@ -14,6 +14,7 @@ from pytui.core.events import EventBus
 from pytui.core.renderable import Renderable
 from pytui.lib.key_handler import InternalKeyHandler
 from pytui.lib.stdin_buffer import StdinBuffer
+from pytui.core.mouse import MouseHandler
 from pytui.core.terminal import Terminal
 from pytui.core.types import CursorStyle, DebugOverlayCorner
 
@@ -172,6 +173,9 @@ class Renderer:
         self._key_handler.on("keypress", self._on_keypress)
         self._key_handler.on("keyrelease", self._on_keyrelease)
         self._key_handler.on("paste", self._on_paste)
+        self._mouse_handler = MouseHandler()
+        self._mouse_captured: Renderable | None = None
+        self._mouse_handler.on("mouse", self._dispatch_mouse)
         self.prepend_input_handler(self._debug_capture_input)
         self.events = EventBus()
         self.running = False
@@ -325,7 +329,7 @@ class Renderer:
             sys.stdout.flush()
 
     def _process_input(self) -> None:
-        # 本帧内收集当前可读字节，整块 decode 后只调用一次 process(chunk)，便于 \x1b[Z、\x1b[1;2C 等完整到达。
+        # Align OpenTUI: mouse on raw bytes first; unconsumed goes to StdinBuffer.
         stream = self._input_stream if self._input_stream is not None else getattr(sys.stdin, "buffer", sys.stdin)
         try:
             ready = select.select([stream], [], [], 0)[0]
@@ -354,6 +358,11 @@ class Renderer:
                 break
         if not chunk:
             return
+        if self._use_mouse:
+            unconsumed = self._mouse_handler.feed(chunk)
+            chunk = unconsumed if unconsumed else b""
+        if not chunk:
+            return
         decoded = self._utf8_decoder.decode(chunk)
         if decoded:
             if os.environ.get("PYTUI_DEBUG"):
@@ -365,6 +374,8 @@ class Renderer:
         self._terminal_width, self._terminal_height = w, h
         render_h = self._experimental_split_height if self._experimental_split_height > 0 else h
         if w != self.width or render_h != self.height:
+            self._mouse_captured = None
+            self._mouse_handler.reset()
             self.width, self.height = w, render_h
             self._render_offset = h - self._experimental_split_height if self._experimental_split_height > 0 else 0
             if self._native_renderer is not None:
@@ -383,11 +394,56 @@ class Renderer:
             self.schedule_render()
 
     def _on_stdin_sequence(self, seq: str) -> None:
-        """Run input_handlers then key_handler.process_input; aligns OpenTUI _stdinBuffer.on('data')."""
+        """Run input_handlers then key_handler.process_input. Mouse handled on raw bytes in _process_input."""
         for h in self._input_handlers:
             if h(seq):
                 return
-        self._key_handler.process_input(seq)
+        if seq:
+            self._key_handler.process_input(seq)
+
+    def hit_test(self, x: int, y: int) -> Renderable | None:
+        """Return the frontmost renderable that contains (x, y). Aligns OpenTUI hitTest."""
+        return self._hit_test_renderable(self.root, x, y)
+
+    def _hit_test_renderable(self, r: Renderable, x: int, y: int) -> Renderable | None:
+        if not getattr(r, "visible", True):
+            return None
+        if not (r.x <= x < r.x + r.width and r.y <= y < r.y + r.height):
+            return None
+        children = getattr(r, "children", [])
+        if not children:
+            return r
+        order = sorted(
+            range(len(children)),
+            key=lambda i: (-getattr(children[i], "z_index", 0), -i),
+        )
+        for i in order:
+            hit = self._hit_test_renderable(children[i], x, y)
+            if hit is not None:
+                return hit
+        return r
+
+    def _dispatch_mouse(self, ev: dict) -> None:
+        """Dispatch mouse to hit target or captured; align OpenTUI handleMouseData / capturedRenderable."""
+        if not self._use_mouse:
+            return
+        self.root.calculate_layout()
+        ex = ev.get("x", 0)
+        ey = ev.get("y", 0)
+        ev_type = ev.get("type") or ""
+        if ev_type == "down":
+            self._mouse_captured = self.hit_test(ex, ey)
+            target = self._mouse_captured
+        elif ev_type in ("drag", "move"):
+            target = self._mouse_captured
+        elif ev_type == "up":
+            target = self._mouse_captured
+            self._mouse_captured = None
+        else:
+            target = self.hit_test(ex, ey)
+        if target is not None and hasattr(target, "on_mouse") and callable(getattr(target, "on_mouse")):
+            target.on_mouse(ev)
+        self.events.emit("mouse", ev)
 
     def _on_keypress(self, key: dict) -> None:
         self.events.emit("keypress", key)
@@ -411,6 +467,8 @@ class Renderer:
         return self.root._dirty
 
     def schedule_render(self) -> None:
+        if self._control_state == RendererControlState.EXPLICIT_SUSPENDED:
+            return
         self._render_scheduled = True
 
     def request_render(self) -> None:
@@ -478,6 +536,8 @@ class Renderer:
         if value:
             self.terminal.enable_mouse()
         else:
+            self._mouse_captured = None
+            self._mouse_handler.reset()
             self.terminal.disable_mouse()
 
     @property
@@ -702,12 +762,6 @@ class Renderer:
 
     def focus_renderable(self, renderable: Renderable) -> None:
         self._current_focused_renderable = renderable
-
-    def hit_test(self, x: int, y: int) -> int:
-        """Return renderable id at (x, y), or 0. 方案 B 阶段三：native 时转发到 check_hit。"""
-        if self._native_renderer is not None:
-            return self._native_renderer.check_hit(x, y)
-        return 0
 
     def set_memory_snapshot_interval(self, interval: int) -> None:
         self.memory_snapshot_interval = interval

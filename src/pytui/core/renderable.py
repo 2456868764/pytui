@@ -212,6 +212,10 @@ class Renderable(ABC, EventEmitter):
             self.emit(BLURRED)
             self.request_render()
 
+    def on_mouse(self, event: dict) -> None:
+        """Optional mouse handler; override or set for hit-target dispatch. Aligns OpenTUI onMouseDown/onMouseDrag/onMouseUp."""
+        pass
+
     def is_root(self) -> bool:
         return self.parent is None
 

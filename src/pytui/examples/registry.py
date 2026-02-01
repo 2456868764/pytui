@@ -44,6 +44,18 @@ except ImportError:
     _key_input_demo_run = None  # type: ignore[misc, assignment]
     _key_input_demo_destroy = None  # type: ignore[misc, assignment]
 
+try:
+    from pytui.examples.slider_demo import destroy as _slider_demo_destroy, run as _slider_demo_run
+except ImportError:
+    _slider_demo_run = None  # type: ignore[misc, assignment]
+    _slider_demo_destroy = None  # type: ignore[misc, assignment]
+
+try:
+    from pytui.examples.styled_text_demo import destroy as _styled_text_demo_destroy, run as _styled_text_demo_run
+except ImportError:
+    _styled_text_demo_run = None  # type: ignore[misc, assignment]
+    _styled_text_demo_destroy = None  # type: ignore[misc, assignment]
+
 EXAMPLES: dict[str, ExampleEntry] = {
     # Phase 1 - Layout & basic controls
     "simple-layout": (_simple_layout_run, _simple_layout_destroy, "Flex layout: horizontal/vertical/centered/three-column"),
@@ -51,8 +63,8 @@ EXAMPLES: dict[str, ExampleEntry] = {
     "input-select-layout": (_input_select_run, _input_select_destroy, "Input + Select layout together"),
     "select-demo": (_select_demo_run, _select_demo_destroy, "Select list with keyboard nav and descriptions"),
     "tab-select-demo": (_tab_select_demo_run, _tab_select_demo_destroy, "Tab selection with arrows and descriptions"),
-    "slider-demo": (None, None, "Horizontal/vertical sliders with value display"),
-    "styled-text-demo": (None, None, "Styled text with colors and formatting"),
+    "slider-demo": (_slider_demo_run, _slider_demo_destroy, "Horizontal/vertical sliders with value display"),
+    "styled-text-demo": (_styled_text_demo_run, _styled_text_demo_destroy, "Styled text with colors and formatting"),
     # Phase 2 - Text & highlighting
     "text-node-demo": (None, None, "TextNode API for complex styled text"),
     "text-wrap": (None, None, "Text wrapping and resizable content"),

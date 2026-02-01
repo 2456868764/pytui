@@ -42,6 +42,9 @@ class MouseHandler(EventEmitter):
                 self.emit("mouse", ev)
                 i += consumed
                 continue
+            # Don't consume 0x1b: may be start of \x1b[<... (SGR) or \x1b[M (basic); keep for next feed
+            if self._buffer[i] == 0x1B:
+                break
             unconsumed.append(self._buffer[i])
             i += 1
         del self._buffer[:i]

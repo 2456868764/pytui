@@ -33,10 +33,10 @@ def _dynamic_height(show_underline: bool, show_description: bool) -> int:
     return h
 
 
-# Default keybindings align with OpenTUI defaultTabSelectKeybindings
+# Default keybindings align with OpenTUI defaultTabSelectKeybindings; Tab/Backtab for next/prev tab
 DEFAULT_TAB_SELECT_KEY_BINDINGS = {
-    "move-left": ["left", "["],
-    "move-right": ["right", "]"],
+    "move-left": ["left", "[", "backtab"],
+    "move-right": ["right", "]", "tab"],
     "select-current": ["return", "linefeed"],
 }
 

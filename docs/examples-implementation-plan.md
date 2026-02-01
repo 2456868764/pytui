@@ -186,9 +186,11 @@ index/选择器 (Box + Select + Textarea filter)
 - [x] **阶段 1.4**：`select_demo.py`（Select 列表、F/D/S/W 切换描述/滚动/换行、状态区）
 - [x] **阶段 5**：注册表（5.1）、主入口（5.2）、README（5.3）；本计划文档（5.4）
 - [x] **阶段 1.5**：`tab_select_demo.py`（TabSelect 标签栏、Left/Right 切换、D/U/W 切换描述/下划线/换行、状态区）
-- [ ] 阶段 1.6–1.7、2、3、4：其余 demo 待按步骤实现
+- [x] **阶段 1.6**：`slider_demo.py`（水平/垂直 Slider、数值显示、F 切换焦点、Left/Right/Up/Down 调节）
+- [x] **阶段 1.7**：`styled_text_demo.py`（StyledText：Span 颜色、bold/italic/underline、混合样式）
+- [ ] 阶段 2、3、4：其余 demo 待按步骤实现
 
-**运行**：`python -m pytui.examples`（选择器）或 `python -m pytui.examples <name>`（如 `simple-layout`、`input-demo`、`input-select-layout`、`select-demo`）。
+**运行**：`python -m pytui.examples`（选择器）或 `python -m pytui.examples <name>`（如 `simple-layout`、`input-demo`、`slider-demo`、`styled-text-demo`）。
 
 ---
 

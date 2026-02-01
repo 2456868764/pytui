@@ -20,7 +20,7 @@ from pytui.components.line_number import LineNumber, LineColorConfig, LineSign
 from pytui.components.scrollbar import ScrollBar
 from pytui.components.scrollbox import Scrollbox, ScrollUnit, StickyStart
 from pytui.components.select import Select, SelectOption
-from pytui.components.slider import Slider
+from pytui.components.slider import Slider, SliderRenderable
 from pytui.components.tab_select import TabSelect, TabSelectOption
 from pytui.components.text import Text, TextAttributes, StyledText
 from pytui.components.text_node import (
@@ -77,6 +77,7 @@ __all__ = [
     "ScrollUnit",
     "StickyStart",
     "Slider",
+    "SliderRenderable",
     "ScrollBar",
     "LineNumber",
     "LineColorConfig",

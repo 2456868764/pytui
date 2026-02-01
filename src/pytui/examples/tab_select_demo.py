@@ -33,7 +33,7 @@ def _update_displays() -> None:
 
     key_legend_text = (
         "Key Controls:\n"
-        "Left/Right or [/]: Move between tabs\n"
+        "Tab / Shift+Tab or Left/Right or [/]: Move between tabs\n"
         "Enter: Select (activate) current tab\n"
         "F: Toggle focus\n"
         "D: Toggle descriptions\n"
