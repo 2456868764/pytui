@@ -56,6 +56,45 @@ except ImportError:
     _styled_text_demo_run = None  # type: ignore[misc, assignment]
     _styled_text_demo_destroy = None  # type: ignore[misc, assignment]
 
+try:
+    from pytui.examples.text_node_demo import destroy as _text_node_demo_destroy, run as _text_node_demo_run
+except ImportError:
+    _text_node_demo_run = None  # type: ignore[misc, assignment]
+    _text_node_demo_destroy = None  # type: ignore[misc, assignment]
+
+try:
+    from pytui.examples.text_wrap import destroy as _text_wrap_destroy, run as _text_wrap_run
+except ImportError:
+    _text_wrap_run = None  # type: ignore[misc, assignment]
+    _text_wrap_destroy = None  # type: ignore[misc, assignment]
+
+try:
+    from pytui.examples.link_demo import destroy as _link_demo_destroy, run as _link_demo_run
+except ImportError:
+    _link_demo_run = None  # type: ignore[misc, assignment]
+    _link_demo_destroy = None  # type: ignore[misc, assignment]
+
+try:
+    from pytui.examples.opacity_example import destroy as _opacity_example_destroy, run as _opacity_example_run
+except ImportError:
+    _opacity_example_run = None  # type: ignore[misc, assignment]
+    _opacity_example_destroy = None  # type: ignore[misc, assignment]
+
+try:
+    from pytui.examples.nested_zindex_demo import destroy as _nested_zindex_demo_destroy, run as _nested_zindex_demo_run
+except ImportError:
+    _nested_zindex_demo_run = None  # type: ignore[misc, assignment]
+    _nested_zindex_demo_destroy = None  # type: ignore[misc, assignment]
+
+try:
+    from pytui.examples.relative_positioning_demo import (
+        destroy as _relative_positioning_demo_destroy,
+        run as _relative_positioning_demo_run,
+    )
+except ImportError:
+    _relative_positioning_demo_run = None  # type: ignore[misc, assignment]
+    _relative_positioning_demo_destroy = None  # type: ignore[misc, assignment]
+
 EXAMPLES: dict[str, ExampleEntry] = {
     # Phase 1 - Layout & basic controls
     "simple-layout": (_simple_layout_run, _simple_layout_destroy, "Flex layout: horizontal/vertical/centered/three-column"),
@@ -66,11 +105,11 @@ EXAMPLES: dict[str, ExampleEntry] = {
     "slider-demo": (_slider_demo_run, _slider_demo_destroy, "Horizontal/vertical sliders with value display"),
     "styled-text-demo": (_styled_text_demo_run, _styled_text_demo_destroy, "Styled text with colors and formatting"),
     # Phase 2 - Text & highlighting
-    "text-node-demo": (None, None, "TextNode API for complex styled text"),
-    "text-wrap": (None, None, "Text wrapping and resizable content"),
-    "link-demo": (None, None, "OSC 8 hyperlinks (when terminal supports)"),
+    "text-node-demo": (_text_node_demo_run, _text_node_demo_destroy, "TextNode API: 4 examples (basic, nested, dynamic, document)"),
+    "text-wrap": (_text_wrap_run, _text_wrap_destroy, "Text wrapping in ScrollBox; j/k or Up/Down to scroll"),
+    "link-demo": (_link_demo_run, _link_demo_destroy, "OSC 8 hyperlinks (when terminal supports)"),
     "extmarks-demo": (None, None, "Virtual extmarks and cursor skip ranges"),
-    "opacity-example": (None, None, "Box opacity and animated transitions"),
+    "opacity-example": (_opacity_example_run, _opacity_example_destroy, "Box opacity; 1-4 toggle, A animate"),
     "code-demo": (None, None, "Code viewer with line numbers and syntax highlight"),
     "diff-demo": (None, None, "Unified/split diff with syntax highlight"),
     "hast-syntax-highlighting-demo": (None, None, "HAST to syntax-highlighted chunks"),
@@ -82,8 +121,8 @@ EXAMPLES: dict[str, ExampleEntry] = {
     "ascii-font-selection-demo": (None, None, "ASCII font character-level selection"),
     "scroll-example": (None, None, "ScrollBox with Box/ASCIIFont children"),
     "sticky-scroll-example": (None, None, "Sticky scroll at content edges"),
-    "nested-zindex-demo": (None, None, "Nested z-index behavior"),
-    "relative-positioning-demo": (None, None, "Child positions relative to parent"),
+    "nested-zindex-demo": (_nested_zindex_demo_run, _nested_zindex_demo_destroy, "Nested z-index; +/- speed"),
+    "relative-positioning-demo": (_relative_positioning_demo_run, _relative_positioning_demo_destroy, "Child positions relative to parent"),
     "transparency-demo": (None, None, "Alpha blending and transparency"),
     # Phase 4 - Composition & system
     "vnode-composition-demo": (None, None, "Box(Box(Box(children))) composition"),

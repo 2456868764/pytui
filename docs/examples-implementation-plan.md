@@ -188,9 +188,15 @@ index/选择器 (Box + Select + Textarea filter)
 - [x] **阶段 1.5**：`tab_select_demo.py`（TabSelect 标签栏、Left/Right 切换、D/U/W 切换描述/下划线/换行、状态区）
 - [x] **阶段 1.6**：`slider_demo.py`（水平/垂直 Slider、数值显示、F 切换焦点、Left/Right/Up/Down 调节）
 - [x] **阶段 1.7**：`styled_text_demo.py`（StyledText：Span 颜色、bold/italic/underline、混合样式）
-- [ ] 阶段 2、3、4：其余 demo 待按步骤实现
+- [x] **阶段 2.1**：`text_node_demo.py`（TextNode API：4 个示例 1–4、Space 切换动态、R 重置）
+- [x] **阶段 2.2**：`text_wrap.py`（ScrollBox + Text 长文、j/k 或 Up/Down 滚动）
+- [x] **阶段 2.3**：`link_demo.py`（OSC 8 链接 Span、说明）
+- [x] **阶段 2.5**：`opacity_example.py`（4 个 Box 透明度、1–4 切换、A 动画）
+- [x] **阶段 3.7**：`nested_zindex_demo.py`（3 组 A/B/C z-index、帧回调 4 阶段、+/- 速度）
+- [x] **阶段 3.8**：`relative_positioning_demo.py`（父 Box、子绝对定位 left/top）
+- [ ] 阶段 2.4、2.6–2.9、3.1–3.6、3.9、4：其余 demo 待按步骤实现
 
-**运行**：`python -m pytui.examples`（选择器）或 `python -m pytui.examples <name>`（如 `simple-layout`、`input-demo`、`slider-demo`、`styled-text-demo`）。
+**运行**：`python -m pytui.examples`（选择器）或 `python -m pytui.examples <name>`（如 `text-wrap`、`link-demo`、`opacity-example`、`nested-zindex-demo`、`relative-positioning-demo`）。
 
 ---
 

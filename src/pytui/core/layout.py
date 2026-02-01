@@ -1,6 +1,6 @@
-# pytui.core.layout - Yoga layout or stub
+# pytui.core.layout - poga (YogaLayout) or stub. Aligns https://github.com/dzhsurf/poga
 
-from typing import Literal
+from typing import Any, Literal
 
 FlexDirection = Literal["row", "column", "row-reverse", "column-reverse"]
 AlignItems = Literal["flex-start", "flex-end", "center", "stretch", "baseline"]
@@ -10,12 +10,11 @@ JustifyContent = Literal[
 ]
 
 try:
-    import yoga  # type: ignore[import-untyped]
-
-    HAS_YOGA = True
+    from pytui.core.poga_layout import PogaNode, is_available as poga_is_available
+    HAS_POGA = poga_is_available()
 except ImportError:
-    HAS_YOGA = False
-    yoga = None  # type: ignore[assignment]
+    HAS_POGA = False
+    PogaNode = None  # type: ignore[assignment]
 
 
 class _StubLayoutNode:
@@ -225,14 +224,17 @@ class _StubLayoutNode:
             c._resolve_pct(inner_w, inner_h)
             if hasattr(c, "calculate_layout"):
                 c.calculate_layout(inner_w, inner_h, direction)
-        n = len(self.children)
+        # Align OpenTUI: absolute children are positioned by left/top; relative by flex flow
+        rel_children = [c for c in self.children if getattr(c, "_position_type", "relative") != "absolute"]
+        abs_children = [c for c in self.children if getattr(c, "_position_type", "relative") == "absolute"]
+        n = len(rel_children)
         gap = self._gap
         is_row = self._flex_direction in ("row", "row-reverse")
         main_size = inner_w if is_row else inner_h
         cross_size = inner_h if is_row else inner_w
         main_sizes: list[float] = []
         cross_sizes: list[float] = []
-        for c in self.children:
+        for c in rel_children:
             cw = c.get_computed_width() if c.get_computed_width() > 0 else (inner_w if is_row else 0)
             ch = c.get_computed_height() if c.get_computed_height() > 0 else (inner_h if not is_row else 0)
             if is_row:
@@ -242,10 +244,10 @@ class _StubLayoutNode:
                 main_sizes.append(ch if ch > 0 else 0)
                 cross_sizes.append(cw if cw > 0 else cross_size)
         total_main = sum(main_sizes) + gap * max(0, n - 1)
-        grow_total = sum(getattr(c, "_flex_grow", 0.0) for c in self.children)
+        grow_total = sum(getattr(c, "_flex_grow", 0.0) for c in rel_children)
         if grow_total > 0 and total_main < main_size:
             extra = main_size - total_main
-            for i, c in enumerate(self.children):
+            for i, c in enumerate(rel_children):
                 g = getattr(c, "_flex_grow", 0.0)
                 if g > 0:
                     add = extra * g / grow_total
@@ -257,7 +259,7 @@ class _StubLayoutNode:
                         main_sizes[i] = c._height
             total_main = main_size
         if self._align_items == "stretch":
-            for i, c in enumerate(self.children):
+            for i, c in enumerate(rel_children):
                 if is_row:
                     if getattr(c, "_height", 0) <= 0:
                         c._height = cross_size
@@ -280,7 +282,7 @@ class _StubLayoutNode:
             justify_off = gap
         main_off = self._padding_left if is_row else self._padding_top
         main_off += justify_off
-        for i, c in enumerate(self.children):
+        for i, c in enumerate(rel_children):
             cross_off = self._padding_top if is_row else self._padding_left
             if self._align_items == "flex-end":
                 cross_off += cross_size - cross_sizes[i]
@@ -295,11 +297,17 @@ class _StubLayoutNode:
                 c._y = self._padding_top + main_off
                 main_off += main_sizes[i] + gap
         if self._flex_direction == "row-reverse":
-            for c in self.children:
+            for c in rel_children:
                 c._x = self.get_computed_width() - c._x - c.get_computed_width()
         elif self._flex_direction == "column-reverse":
-            for c in self.children:
+            for c in rel_children:
                 c._y = self.get_computed_height() - c._y - c.get_computed_height()
+        # Position absolute children by left/top (relative to parent content box)
+        for c in abs_children:
+            left_val = c._pos_left
+            top_val = c._pos_top
+            c._x = self._padding_left + (float(left_val) if isinstance(left_val, (int, float)) else 0.0)
+            c._y = self._padding_top + (float(top_val) if isinstance(top_val, (int, float)) else 0.0)
 
     def get_computed_left(self) -> float:
         return self._x
@@ -315,92 +323,44 @@ class _StubLayoutNode:
 
 
 class LayoutNode:
-    """Yoga 布局节点封装；无 yoga 时使用简单 stub。"""
+    """布局节点：poga (YogaLayout CAPI) 或 stub。"""
 
     def __init__(self) -> None:
         self.children: list[LayoutNode] = []
-        if HAS_YOGA and yoga is not None:
-            self.node = yoga.Node.create()
-            self._stub: _StubLayoutNode | None = None
-        else:
+        self._stub: _StubLayoutNode | None = None
+        self._poga_node: Any = None
+        if HAS_POGA and PogaNode is not None:
+            try:
+                self._poga_node = PogaNode()
+            except Exception:
+                self._poga_node = None
+        if self._poga_node is None:
             self._stub = _StubLayoutNode()
-            self.node = None  # type: ignore[assignment]
 
-    def _node(self) -> "_StubLayoutNode":
-        if self._stub is not None:
-            return self._stub
-        return self.node  # type: ignore[return-value]
+    def _node(self) -> Any:
+        return self._poga_node if self._poga_node is not None else self._stub
 
     def set_flex_direction(self, direction: FlexDirection) -> None:
-        if self.node is not None and yoga is not None:
-            mapping = {
-                "row": yoga.FLEX_DIRECTION_ROW,
-                "column": yoga.FLEX_DIRECTION_COLUMN,
-                "row-reverse": yoga.FLEX_DIRECTION_ROW_REVERSE,
-                "column-reverse": yoga.FLEX_DIRECTION_COLUMN_REVERSE,
-            }
-            self.node.set_flex_direction(mapping[direction])
-        else:
-            self._stub.set_flex_direction(direction)
+        self._node().set_flex_direction(direction)
 
     def set_flex_wrap(self, wrap: Literal["wrap", "nowrap"]) -> None:
-        if self.node is not None and yoga is not None:
-            self.node.set_flex_wrap(yoga.WRAP_WRAP if wrap == "wrap" else yoga.WRAP_NO_WRAP)
-        else:
-            self._stub.set_flex_wrap(wrap)
+        self._node().set_flex_wrap(wrap)
 
     def set_align_items(self, align: AlignItems) -> None:
-        if self.node is not None and yoga is not None:
-            mapping = {
-                "flex-start": yoga.ALIGN_FLEX_START,
-                "flex-end": yoga.ALIGN_FLEX_END,
-                "center": yoga.ALIGN_CENTER,
-                "stretch": yoga.ALIGN_STRETCH,
-                "baseline": yoga.ALIGN_BASELINE,
-            }
-            self.node.set_align_items(mapping[align])
-        else:
-            self._stub.set_align_items(align)
+        self._node().set_align_items(align)
 
     def set_justify_content(self, justify: JustifyContent) -> None:
-        if self.node is not None and yoga is not None:
-            mapping = {
-                "flex-start": yoga.JUSTIFY_FLEX_START,
-                "flex-end": yoga.JUSTIFY_FLEX_END,
-                "center": yoga.JUSTIFY_CENTER,
-                "space-between": yoga.JUSTIFY_SPACE_BETWEEN,
-                "space-around": yoga.JUSTIFY_SPACE_AROUND,
-            }
-            if justify == "space-evenly" and hasattr(yoga, "JUSTIFY_SPACE_EVENLY"):
-                mapping["space-evenly"] = yoga.JUSTIFY_SPACE_EVENLY
-            self.node.set_justify_content(mapping.get(justify, yoga.JUSTIFY_FLEX_START))
-        else:
-            self._stub.set_justify_content(justify)
+        self._node().set_justify_content(justify)
 
     def set_gap(self, gap_or_gutter: float | str, value: float | None = None) -> None:
-        """Set gap. One arg: set_gap(gap). Two args: set_gap(gutter, value), gutter 'all'|'row'|'column'."""
         n = self._node()
-        if value is None:
-            if hasattr(n, "set_gap"):
-                n.set_gap(gap_or_gutter)
-            if self.node is not None and yoga is not None and hasattr(yoga, "Gutter"):
-                self.node.set_gap(yoga.Gutter.All, float(gap_or_gutter))
-        else:
-            if hasattr(n, "set_gap"):
-                n.set_gap(gap_or_gutter, value)
-            if self.node is not None and yoga is not None and hasattr(yoga, "Gutter"):
-                g = getattr(yoga.Gutter, str(gap_or_gutter).upper(), yoga.Gutter.All)
-                self.node.set_gap(g, float(value))
+        if hasattr(n, "set_gap"):
+            n.set_gap(gap_or_gutter) if value is None else n.set_gap(gap_or_gutter, value)
 
     def set_border(self, edge: str, value: float) -> None:
-        """Set border width for edge (left, top, right, bottom). Aligns OpenTUI Edge + setBorder."""
         n = self._node()
         if hasattr(n, "set_border"):
             n.set_border(edge, value)
-        if self.node is not None and yoga is not None and hasattr(yoga, "Edge"):
-            edge_enum = getattr(yoga.Edge, edge.upper(), None)
-            if edge_enum is not None:
-                self.node.set_border(edge_enum, value)
 
     def set_flex_grow(self, grow: float) -> None:
         n = self._node()
@@ -413,35 +373,15 @@ class LayoutNode:
             n.set_flex_shrink(shrink)
 
     def set_flex_basis(self, basis: int | Literal["auto"]) -> None:
-        if self.node is not None and yoga is not None:
-            if basis == "auto":
-                self.node.set_flex_basis_auto()
-            else:
-                self.node.set_flex_basis(basis)
-        else:
-            self._stub.set_flex_basis(basis)
+        n = self._node()
+        if hasattr(n, "set_flex_basis"):
+            n.set_flex_basis(basis)
 
     def set_width(self, width: int | str) -> None:
-        if self.node is not None and yoga is not None:
-            if isinstance(width, int):
-                self.node.set_width(width)
-            elif width == "auto":
-                self.node.set_width_auto()
-            elif isinstance(width, str) and width.endswith("%"):
-                self.node.set_width_percent(float(width[:-1]))
-        else:
-            self._stub.set_width(width)
+        self._node().set_width(width)
 
     def set_height(self, height: int | str) -> None:
-        if self.node is not None and yoga is not None:
-            if isinstance(height, int):
-                self.node.set_height(height)
-            elif height == "auto":
-                self.node.set_height_auto()
-            elif isinstance(height, str) and height.endswith("%"):
-                self.node.set_height_percent(float(height[:-1]))
-        else:
-            self._stub.set_height(height)
+        self._node().set_height(height)
 
     def set_min_width(self, width: int) -> None:
         n = self._node()
@@ -487,16 +427,16 @@ class LayoutNode:
         if index is None:
             index = len(self.children)
         self.children.insert(index, child)
-        if self.node is not None and yoga is not None and getattr(child, "node", None) is not None:
-            self.node.insert_child(child.node, index)
+        if self._poga_node is not None and child._poga_node is not None:
+            self._poga_node.insert_child(child._poga_node, index)
         elif self._stub is not None and child._stub is not None:
             self._stub.insert_child(child._stub, index)
 
     def remove_child(self, child: "LayoutNode") -> None:
         if child in self.children:
             self.children.remove(child)
-            if self.node is not None and yoga is not None and getattr(child, "node", None) is not None:
-                self.node.remove_child(child.node)
+            if self._poga_node is not None and child._poga_node is not None:
+                self._poga_node.remove_child(child._poga_node)
             elif self._stub is not None and child._stub is not None:
                 self._stub.remove_child(child._stub)
 
@@ -506,12 +446,7 @@ class LayoutNode:
         height: float = float("nan"),
         direction: Literal["ltr", "rtl"] = "ltr",
     ) -> None:
-        node = self._node()
-        if self.node is not None and yoga is not None:
-            d = yoga.DIRECTION_RTL if direction == "rtl" else yoga.DIRECTION_LTR
-            self.node.calculate_layout(width, height, d)
-        else:
-            node.calculate_layout(width, height, direction)
+        self._node().calculate_layout(width, height, direction)
 
     def get_computed_layout(self) -> dict:
         node = self._node()

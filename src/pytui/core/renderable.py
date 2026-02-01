@@ -53,7 +53,7 @@ class Renderable(ABC, EventEmitter):
         self.z_index = options.get("z_index", options.get("zIndex", 0))
         self.focused = options.get("focused", False)
         self._dirty = True
-        self._opacity = options.get("opacity", 1.0)
+        self._opacity = float(options.get("opacity", 1.0))
         self._render_before = options.get("render_before", options.get("renderBefore"))
         self._render_after = options.get("render_after", options.get("renderAfter"))
         self._apply_layout_options(options)
@@ -187,6 +187,10 @@ class Renderable(ABC, EventEmitter):
     def render(self, buffer: OptimizedBuffer, delta_time: float = 0.0) -> None:
         if not self.visible:
             return
+        # Align OpenTUI: push opacity before rendering this element and children
+        should_push_opacity = getattr(self, "_opacity", 1.0) < 1.0
+        if should_push_opacity:
+            buffer.push_opacity(self.opacity)
         if self._render_before:
             self._render_before(buffer, delta_time)
         self.render_self(buffer)
@@ -194,6 +198,8 @@ class Renderable(ABC, EventEmitter):
             self._render_after(buffer, delta_time)
         for child in sorted(self.children, key=lambda c: c.z_index):
             child.render(buffer, delta_time)
+        if should_push_opacity:
+            buffer.pop_opacity()
         self._dirty = False
 
     @abstractmethod
@@ -210,6 +216,17 @@ class Renderable(ABC, EventEmitter):
         if self.focused:
             self.focused = False
             self.emit(BLURRED)
+            self.request_render()
+
+    @property
+    def opacity(self) -> float:
+        return getattr(self, "_opacity", 1.0)
+
+    @opacity.setter
+    def opacity(self, value: float) -> None:
+        v = max(0.0, min(1.0, float(value)))
+        if getattr(self, "_opacity", 1.0) != v:
+            self._opacity = v
             self.request_render()
 
     def on_mouse(self, event: dict) -> None:

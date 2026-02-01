@@ -269,6 +269,7 @@ class Renderer:
 
     def _render_frame(self) -> None:
         self.back_buffer.clear()
+        self.back_buffer._opacity_stack.clear()  # Align OpenTUI: fresh opacity stack per frame
         self.root.calculate_layout()
         delta_time = time.time() - self._last_render_time if self._frame_count else 0.0
         self.root.render(self.back_buffer, delta_time)

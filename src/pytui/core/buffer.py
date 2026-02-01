@@ -103,6 +103,24 @@ class OptimizedBuffer:
                 self.cells = np.empty((height, width), dtype=object)
                 self.clear()
         self._destroyed = False
+        self._opacity_stack: list[float] = []  # Align OpenTUI opacity_stack; product = current opacity
+
+    def get_current_opacity(self) -> float:
+        """Effective opacity (product of stack). Aligns OpenTUI getCurrentOpacity()."""
+        if not self._opacity_stack:
+            return 1.0
+        return self._opacity_stack[-1]
+
+    def push_opacity(self, opacity: float) -> None:
+        """Push opacity onto stack; effective = current * opacity. Aligns OpenTUI pushOpacity()."""
+        opacity = max(0.0, min(1.0, float(opacity)))
+        current = self.get_current_opacity()
+        self._opacity_stack.append(current * opacity)
+
+    def pop_opacity(self) -> None:
+        """Pop opacity from stack. Aligns OpenTUI popOpacity()."""
+        if self._opacity_stack:
+            self._opacity_stack.pop()
 
     def destroy(self) -> None:
         """Release native buffer (align OpenTUI buffer.destroy()). No-op if already destroyed or Python fallback."""
@@ -124,8 +142,8 @@ class OptimizedBuffer:
         if getattr(self, "_destroyed", False):
             raise RuntimeError("Buffer is destroyed")
 
-    def set_cell(self, x: int, y: int, cell: Cell) -> None:
-        """设置单元格。越界时静默忽略。"""
+    def _set_cell_raw(self, x: int, y: int, cell: Cell) -> None:
+        """Write cell without applying opacity stack (used by set_cell and set_cell_with_alpha)."""
         self._guard()
         if not (0 <= x < self.width and 0 <= y < self.height):
             return
@@ -133,6 +151,17 @@ class OptimizedBuffer:
             self._native_buffer.set_cell(x, y, cell.to_native())
         else:
             self.cells[y, x] = cell
+
+    def set_cell(self, x: int, y: int, cell: Cell) -> None:
+        """设置单元格。越界时静默忽略。若当前 opacity < 1 则与已有格混合（对齐 OpenTUI）。"""
+        self._guard()
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return
+        alpha = self.get_current_opacity()
+        if alpha < 1.0:
+            self.set_cell_with_alpha(x, y, cell, alpha)
+            return
+        self._set_cell_raw(x, y, cell)
 
     @staticmethod
     def blend_color(
@@ -180,7 +209,7 @@ class OptimizedBuffer:
             reverse=cell.reverse or existing.reverse,
             blink=cell.blink or existing.blink,
         )
-        self.set_cell(x, y, blended)
+        self._set_cell_raw(x, y, blended)
 
     def get_cell(self, x: int, y: int) -> Cell | None:
         """获取单元格，越界返回 None。"""
