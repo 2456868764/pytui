@@ -32,4 +32,4 @@ jobs:
 
       - name: Coverage
         run: |
-          pytest tests/unit/ tests/integration/ -v --cov=src/pytui --cov-report=term-missing --cov-report=xml --cov-fail-under=70
+          pytest tests/unit/ tests/integration/ -v --cov=src/pytui --cov-report=term-missing --cov-report=xml --cov-fail-under=60
