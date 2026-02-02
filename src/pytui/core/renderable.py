@@ -233,6 +233,13 @@ class Renderable(ABC, EventEmitter):
         """Optional mouse handler; override or set for hit-target dispatch. Aligns OpenTUI onMouseDown/onMouseDrag/onMouseUp."""
         pass
 
+    def process_mouse_event(self, event: dict) -> None:
+        """Deliver mouse to this node then bubble to parent. Aligns OpenTUI processMouseEvent (onMouse + onMouseDown/Up/... + onMouseEvent, then parent if !propagationStopped). Set event['propagation_stopped'] = True to stop bubbling."""
+        if hasattr(self, "on_mouse") and callable(self.on_mouse):
+            self.on_mouse(event)
+        if self.parent and not event.get("propagation_stopped"):
+            self.parent.process_mouse_event(event)
+
     def is_root(self) -> bool:
         return self.parent is None
 

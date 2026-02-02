@@ -180,18 +180,64 @@ index/选择器 (Box + Select + Textarea filter)
 ## 六、当前进度
 
 - [x] **阶段 0**：目录结构（0.1）、`lib/standalone_keys.py`（0.2）、统一入口 `__main__.py`（0.3）、示例选择器 `selector_demo.py`（0.4）
-- [x] **阶段 1.1**：`simple_layout_example.py`（水平/垂直/居中/三列，Space 切换，R 重置，P 自动播放标签）
-- [x] **阶段 1.2**：`input_demo.py`（多 Input、Tab 切换、校验、Enter 提交、状态显示）
-- [x] **阶段 1.3**：`input_select_layout_demo.py`（Input + 双 Select 同屏，Tab 切换焦点）
-- [x] **阶段 1.4**：`select_demo.py`（Select 列表、F/D/S/W 切换描述/滚动/换行、状态区）
+- [x] **阶段 1 全部**：1.1 `simple_layout_example.py` · 1.2 `input_demo.py` · 1.3 `input_select_layout_demo.py` · 1.4 `select_demo.py` · 1.5 `tab_select_demo.py` · 1.6 `slider_demo.py` · 1.7 `styled_text_demo.py`
+- [x] **阶段 2 部分**：2.1 `text_node_demo.py` · 2.2 `text_wrap.py` · 2.3 `link_demo.py` · 2.5 `opacity_example.py`
+- [ ] **阶段 2 待实现**：2.4 extmarks · 2.6 code-demo · 2.7 diff-demo · 2.8 hast-syntax-highlighting · 2.9 editor-demo
+- [x] **阶段 3 部分**：3.1 `console_demo.py` · 3.5 `scroll_example.py` · 3.7 `nested_zindex_demo.py` · 3.8 `relative_positioning_demo.py`
+- [ ] **阶段 3 待实现**：3.2 mouse-interaction · 3.3 text-selection · 3.4 ascii-font-selection · 3.6 sticky-scroll · 3.9 transparency
+- [x] **阶段 4 部分**：4.7 `key_input_demo.py`（keypress-debug）
+- [ ] **阶段 4 待实现**：4.1 vnode-composition · 4.2 full-unicode · 4.3 live-state · 4.4 opentui-demo · 4.5 ascii-font-demo · 4.6 terminal-palette · 4.8 split-mode · 4.9 timeline
 - [x] **阶段 5**：注册表（5.1）、主入口（5.2）、README（5.3）；本计划文档（5.4）
-- [ ] 阶段 1.5–1.7、2、3、4：其余 demo 待按步骤实现
 
-**运行**：`python -m pytui.examples`（选择器）或 `python -m pytui.examples <name>`（如 `simple-layout`、`input-demo`、`input-select-layout`、`select-demo`）。
+**运行**：`python -m pytui.examples`（选择器）或 `python -m pytui.examples <name>`（如 `simple-layout`、`input-demo`、`slider-demo`、`text-wrap`、`scroll-example`、`console-demo`、`nested-zindex-demo`）。
 
 ---
 
-## 七、步骤摘要（快速查阅）
+## 七、示例状态一览表（与 registry 同步）
+
+| 名称 | 阶段 | 状态 | 备注 |
+|------|------|------|------|
+| simple-layout | 1.1 | ✅ 已实现 | Flex 布局切换 |
+| input-demo | 1.2 | ✅ 已实现 | 多 Input、Tab、校验 |
+| input-select-layout | 1.3 | ✅ 已实现 | Input + 双 Select |
+| select-demo | 1.4 | ✅ 已实现 | Select 列表、F/D/S/W |
+| tab-select-demo | 1.5 | ✅ 已实现 | TabSelect 标签栏 |
+| slider-demo | 1.6 | ✅ 已实现 | 水平/垂直 Slider |
+| styled-text-demo | 1.7 | ✅ 已实现 | 样式文本 |
+| text-node-demo | 2.1 | ✅ 已实现 | TextNode 四例 |
+| text-wrap | 2.2 | ✅ 已实现 | ScrollBox + 换行、L 加载 |
+| link-demo | 2.3 | ✅ 已实现 | OSC 8 链接 |
+| extmarks-demo | 2.4 | ⏳ 占位 | 虚拟 extmarks |
+| opacity-example | 2.5 | ✅ 已实现 | Box 透明度、动画 |
+| code-demo | 2.6 | ⏳ 占位 | Code + LineNumber |
+| diff-demo | 2.7 | ⏳ 占位 | 统一/分屏 diff |
+| hast-syntax-highlighting-demo | 2.8 | ⏳ 占位 | HAST→高亮 |
+| editor-demo | 2.9 | ⏳ 占位 | Textarea 全功能 |
+| console-demo | 3.1 | ✅ 已实现 | 日志级别按钮、输出区、状态行 |
+| mouse-interaction-demo | 3.2 | ⏳ 占位 | 鼠标轨迹、点击 |
+| text-selection-demo | 3.3 | ⏳ 占位 | 跨组件选择 |
+| ascii-font-selection-demo | 3.4 | ⏳ 占位 | ASCIIFont + 选择 |
+| scroll-example | 3.5 | ✅ 已实现 | ScrollBox + Box/Text，j/k 滚动 |
+| sticky-scroll-example | 3.6 | ⏳ 占位 | Sticky 滚动 |
+| nested-zindex-demo | 3.7 | ✅ 已实现 | 嵌套 z-index |
+| relative-positioning-demo | 3.8 | ✅ 已实现 | 相对定位 |
+| transparency-demo | 3.9 | ⏳ 占位 | 透明与混合 |
+| vnode-composition-demo | 4.1 | ⏳ 占位 | Box 嵌套组合 |
+| full-unicode-demo | 4.2 | ⏳ 占位 | Unicode、拖拽 |
+| live-state-demo | 4.3 | ⏳ 占位 | 动态挂载 |
+| opentui-demo | 4.4 | ⏳ 占位 | 多 Tab 综合 |
+| ascii-font-demo | 4.5 | ⏳ 占位 | ASCII 字体 |
+| terminal-palette-demo | 4.6 | ⏳ 占位 | 256 色检测 |
+| key-input-demo / keypress-debug-demo | 4.7 | ✅ 已实现 | 按键调试 |
+| split-mode-demo | 4.8 | ⏳ 占位 | 底部区域渲染 |
+| timeline-example | 4.9 | ⏳ 占位 | 时间线动画 |
+| golden-star-demo 等 11 项 | N/A | 🚫 不移植 | GPU/Physics 占位 |
+
+**统计**：已实现 **18** 个 TUI 示例；占位待实现 **20** 个；不移植 **11** 个。
+
+---
+
+## 八、步骤摘要（快速查阅）
 
 | 阶段 | 步骤数 | 内容 |
 |------|--------|------|
@@ -204,4 +250,13 @@ index/选择器 (Box + Select + Textarea filter)
 
 **合计**：约 34 个 TUI 可实现 example + 11 个 GPU/Physics 占位 + 5 个阶段 42 个步骤。
 
-（当前进度见「六、当前进度」。）
+---
+
+## 九、下一步建议（按优先级）
+
+1. **阶段 2 补齐**：`extmarks_demo.py`（EditBuffer/Textarea + extmarks）、`code_demo.py`（Code + LineNumber + ScrollBox）、`diff_demo.py`（Diff 统一/分屏）、`editor_demo.py`（Textarea 全功能）。HAST 可简化为 Code 高亮展示或暂缓。
+2. **阶段 3 补齐**：`console_demo.py`（日志级别 + 输出区）、`mouse_interaction_demo.py`（鼠标轨迹/点击）、`scroll_example.py`（ScrollBox + Box/ASCIIFont）、`sticky_scroll_example.py`、`transparency_demo.py`。text-selection / ascii-font-selection 依赖 selection API 与 ASCIIFont。
+3. **阶段 4 补齐**：`vnode_composition_demo.py`、`full_unicode_demo.py`、`live_state_demo.py`、`opentui_demo.py`、`ascii_font_demo.py`、`terminal_palette_demo.py`、`split_mode_demo.py`、`timeline_example.py`。
+4. **文档同步**：每完成一个 demo，在 `registry.py` 中接入 `run`/`destroy`，并在本计划文档「六、当前进度」与「七、示例状态一览表」中勾选/更新状态。
+
+（当前进度见「六、当前进度」；状态明细见「七、示例状态一览表」。）

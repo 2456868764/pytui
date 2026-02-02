@@ -119,3 +119,44 @@ class TestRenderable:
         assert len(children) == 1
         assert children[0] is child
         assert children is not root.children
+
+
+class TestRenderableProcessMouseEvent:
+    """process_mouse_event: deliver to self then bubble to parent. Aligns OpenTUI processMouseEvent."""
+
+    def test_process_mouse_event_bubbles_to_parent(self, mock_context):
+        from pytui.core.renderable import Renderable
+
+        class Dummy(Renderable):
+            def render_self(self, buffer):
+                pass
+
+        root = Dummy(mock_context, {"id": "root"})
+        child = Dummy(mock_context, {"id": "child"})
+        root.add(child)
+        received = []
+        child.on_mouse = lambda ev: received.append(("child", ev.get("type")))
+        root.on_mouse = lambda ev: received.append(("root", ev.get("type")))
+        child.process_mouse_event({"type": "down"})
+        assert received == [("child", "down"), ("root", "down")]
+
+    def test_process_mouse_event_stops_on_propagation_stopped(self, mock_context):
+        from pytui.core.renderable import Renderable
+
+        class Dummy(Renderable):
+            def render_self(self, buffer):
+                pass
+
+        root = Dummy(mock_context, {"id": "root"})
+        child = Dummy(mock_context, {"id": "child"})
+        root.add(child)
+        received = []
+
+        def stop_at_child(ev):
+            received.append("child")
+            ev["propagation_stopped"] = True
+
+        root.on_mouse = lambda ev: received.append("root")
+        child.on_mouse = stop_at_child
+        child.process_mouse_event({"type": "down"})
+        assert received == ["child"]

@@ -95,6 +95,18 @@ except ImportError:
     _relative_positioning_demo_run = None  # type: ignore[misc, assignment]
     _relative_positioning_demo_destroy = None  # type: ignore[misc, assignment]
 
+try:
+    from pytui.examples.scroll_example import destroy as _scroll_example_destroy, run as _scroll_example_run
+except ImportError:
+    _scroll_example_run = None  # type: ignore[misc, assignment]
+    _scroll_example_destroy = None  # type: ignore[misc, assignment]
+
+try:
+    from pytui.examples.console_demo import destroy as _console_demo_destroy, run as _console_demo_run
+except ImportError:
+    _console_demo_run = None  # type: ignore[misc, assignment]
+    _console_demo_destroy = None  # type: ignore[misc, assignment]
+
 EXAMPLES: dict[str, ExampleEntry] = {
     # Phase 1 - Layout & basic controls
     "simple-layout": (_simple_layout_run, _simple_layout_destroy, "Flex layout: horizontal/vertical/centered/three-column"),
@@ -115,11 +127,11 @@ EXAMPLES: dict[str, ExampleEntry] = {
     "hast-syntax-highlighting-demo": (None, None, "HAST to syntax-highlighted chunks"),
     "editor-demo": (None, None, "Full text editor with Textarea"),
     # Phase 3 - Interaction & scroll
-    "console-demo": (None, None, "Interactive console with clickable log levels"),
+    "console-demo": (_console_demo_run, _console_demo_destroy, "Interactive console with clickable log levels"),
     "mouse-interaction-demo": (None, None, "Mouse trails and clickable cells"),
     "text-selection-demo": (None, None, "Text selection across renderables"),
     "ascii-font-selection-demo": (None, None, "ASCII font character-level selection"),
-    "scroll-example": (None, None, "ScrollBox with Box/ASCIIFont children"),
+    "scroll-example": (_scroll_example_run, _scroll_example_destroy, "ScrollBox with Box/Text children; j/k scroll"),
     "sticky-scroll-example": (None, None, "Sticky scroll at content edges"),
     "nested-zindex-demo": (_nested_zindex_demo_run, _nested_zindex_demo_destroy, "Nested z-index; +/- speed"),
     "relative-positioning-demo": (_relative_positioning_demo_run, _relative_positioning_demo_destroy, "Child positions relative to parent"),

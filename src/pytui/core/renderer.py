@@ -403,7 +403,7 @@ class Renderer:
             self._key_handler.process_input(seq)
 
     def hit_test(self, x: int, y: int) -> Renderable | None:
-        """Return the frontmost renderable that contains (x, y). Aligns OpenTUI hitTest."""
+        """Return the frontmost renderable that contains (x, y). Aligns OpenTUI hitTest (lib.checkHit returns renderable id)."""
         return self._hit_test_renderable(self.root, x, y)
 
     def _hit_test_renderable(self, r: Renderable, x: int, y: int) -> Renderable | None:
@@ -425,7 +425,7 @@ class Renderer:
         return r
 
     def _dispatch_mouse(self, ev: dict) -> None:
-        """Dispatch mouse to hit target or captured; align OpenTUI handleMouseData / capturedRenderable."""
+        """Dispatch mouse to hit target or captured; align OpenTUI handleMouseData + dispatchMouseEvent + processMouseEvent (bubble)."""
         if not self._use_mouse:
             return
         self.root.calculate_layout()
@@ -442,8 +442,8 @@ class Renderer:
             self._mouse_captured = None
         else:
             target = self.hit_test(ex, ey)
-        if target is not None and hasattr(target, "on_mouse") and callable(getattr(target, "on_mouse")):
-            target.on_mouse(ev)
+        if target is not None:
+            target.process_mouse_event(ev)
         self.events.emit("mouse", ev)
 
     def _on_keypress(self, key: dict) -> None:
